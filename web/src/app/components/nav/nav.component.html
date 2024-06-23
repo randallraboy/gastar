@@ -1,0 +1,17 @@
+<div class="row">
+    <div class="col-3">
+        <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+            <a class="nav-link" routerLink="home" routerLinkActive="active" ariaCurrentWhenActive="page" role="tab"
+                aria-controls="v-pills-home" aria-selected="true">Home</a>
+            <a class="nav-link" routerLink="report" routerLinkActive="active" ariaCurrentWhenActive="page" role="tab"
+                aria-controls="v-pills-home" aria-selected="true">Report</a>
+            <a class="nav-link" routerLink="account" routerLinkActive="active" ariaCurrentWhenActive="page" role="tab"
+                aria-controls="v-pills-home" aria-selected="true">Account</a>
+            <a class="nav-link" routerLink="category" routerLinkActive="active" ariaCurrentWhenActive="page" role="tab"
+                aria-controls="v-pills-home" aria-selected="true">Category</a>
+        </div>
+    </div>
+    <div class="col-9">
+        <router-outlet></router-outlet>
+    </div>
+</div>
