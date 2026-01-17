@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 import {
   faEdit,
@@ -20,26 +20,20 @@ import { AccountComponent } from './components/account/account.component';
 import { CategoryComponent } from './components/category/category.component';
 import { ReportComponent } from './components/report/report.component';
 
-@NgModule({
-  declarations: [
-    AppComponent,
-    NavComponent,
-    HomeComponent,
-    AccountComponent,
-    CategoryComponent,
-    ReportComponent,
-  ],
-  imports: [
-    AppRoutingModule,
-    BrowserModule,
-    FontAwesomeModule,
-    FormsModule,
-    HttpClientModule,
-  ],
-  providers: [
-  ],
-  bootstrap: [AppComponent]
-})
+@NgModule({ declarations: [
+        AppComponent,
+        NavComponent,
+        HomeComponent,
+        AccountComponent,
+        CategoryComponent,
+        ReportComponent,
+    ],
+    bootstrap: [AppComponent], imports: [AppRoutingModule,
+        BrowserModule,
+        FontAwesomeModule,
+        FormsModule], providers: [
+        provideHttpClient(withInterceptorsFromDi())
+    ] })
 export class AppModule {
   constructor(library: FaIconLibrary) {
     library.addIcons(
