@@ -22,7 +22,6 @@ import { ReportComponent } from './components/report/report.component';
 
 @NgModule({ declarations: [
         AppComponent,
-        NavComponent,
         HomeComponent,
         AccountComponent,
         CategoryComponent,
@@ -31,7 +30,8 @@ import { ReportComponent } from './components/report/report.component';
     bootstrap: [AppComponent], imports: [AppRoutingModule,
         BrowserModule,
         FontAwesomeModule,
-        FormsModule], providers: [
+        FormsModule,
+        NavComponent], providers: [
         provideHttpClient(withInterceptorsFromDi())
     ] })
 export class AppModule {
