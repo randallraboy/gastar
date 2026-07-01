@@ -1,97 +1,39 @@
-HELP.md
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
-### VS Code ###
-.vscode/
-
-
-## Additional
-secrets.properties
-
-# Created by https://www.toptal.com/developers/gitignore/api/angular,visualstudiocode
-# Edit at https://www.toptal.com/developers/gitignore?templates=angular,visualstudiocode
-
-### Angular ###
-## Angular ##
-# compiled output
-dist/
-tmp/
-app/**/*.js
-app/**/*.js.map
-
-# dependencies
+# Dependencies
 node_modules/
-bower_components/
+.pnp
+.pnp.js
 
-# IDEs and editors
-.idea/
-
-# misc
-.sass-cache/
-connect.lock/
+# Build
+.next/
+out/
+dist/
+build/
 coverage/
-libpeerconnection.log/
-npm-debug.log
-testem.log
-typings/
-.angular/
 
-# e2e
-e2e/*.js
-e2e/*.map
+# Environment
+.env*
+!.env.example
 
-# System Files
-.DS_Store/
+# Logs
+*.log
+npm-debug.log*
 
-### VisualStudioCode ###
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# IDE
+.idea/
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-!.vscode/*.code-snippets
 
-# Local History for Visual Studio Code
-.history/
+# Drizzle
+drizzle/meta/
 
-# Built Visual Studio Code Extensions
-*.vsix
-
-### VisualStudioCode Patch ###
-# Ignore all local history of files
-.history
-.ionide
-
-# End of https://www.toptal.com/developers/gitignore/api/angular,visualstudiocode
+# Legacy (removed during migration)
+.gradle/

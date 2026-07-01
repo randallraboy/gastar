@@ -1,0 +1,94 @@
+import { z } from "zod";
+
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+export const expenseCreateSchema = z.object({
+  amountCents: z
+    .number({ invalid_type_error: "Enter a valid amount" })
+    .int("Amount must be in whole cents")
+    .positive("Amount must be greater than zero"),
+  expenseDate: z
+    .string()
+    .regex(isoDateRegex, "Enter a valid date (YYYY-MM-DD)")
+    .refine((d) => d <= new Date().toISOString().slice(0, 10), {
+      message: "Expense date cannot be in the future",
+    }),
+  merchant: z
+    .string()
+    .trim()
+    .min(1, "Merchant is required")
+    .max(200, "Merchant must be 200 characters or fewer"),
+  description: z.string().max(500).nullable().optional(),
+  categoryId: z.string().uuid().optional(),
+  pendingReceiptId: z.string().uuid().optional(),
+  overrideDuplicate: z.boolean().optional(),
+});
+
+export const expenseUpdateSchema = z.object({
+  amountCents: z.number().int().positive("Amount must be greater than zero").optional(),
+  expenseDate: z
+    .string()
+    .regex(isoDateRegex, "Enter a valid date (YYYY-MM-DD)")
+    .refine((d) => d <= new Date().toISOString().slice(0, 10), {
+      message: "Expense date cannot be in the future",
+    })
+    .optional(),
+  merchant: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(500).nullable().optional(),
+  categoryId: z.string().uuid().optional(),
+  overrideDuplicate: z.boolean().optional(),
+});
+
+export const categoryInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Category name is required")
+    .max(100, "Category name must be 100 characters or fewer"),
+  keywords: z.array(z.string().trim().min(1)).optional(),
+});
+
+export const categoryUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(100).optional(),
+  keywords: z.array(z.string().trim().min(1)).optional(),
+});
+
+export const harnessParsedResultSchema = z.object({
+  outcome: z.literal("parsed"),
+  amountCents: z.number().int().positive(),
+  expenseDate: z.string().regex(isoDateRegex),
+  merchant: z.string().trim().min(1).max(200),
+  categoryHint: z.string().trim().optional(),
+});
+
+export const harnessUnreadableResultSchema = z.object({
+  outcome: z.literal("unreadable"),
+  errorNote: z.string().trim().min(1, "Error note is required for unreadable receipts"),
+});
+
+export const harnessResultSchema = z.discriminatedUnion("outcome", [
+  harnessParsedResultSchema,
+  harnessUnreadableResultSchema,
+]);
+
+export const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+] as const;
+
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+export function validateUploadFile(file: File): string | null {
+  if (
+    !ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])
+  ) {
+    return "Image must be JPEG, PNG, WebP, or HEIC format";
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return "Image must be 10 MB or smaller";
+  }
+  return null;
+}

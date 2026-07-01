@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-01
 
-**Status**: Draft
+**Status**: complete
 
 **Input**: User description: "this project is practically empty. no significant code written and just bunch of scaffolding. the ultimate goal is to create an expense tracking system (budgeting also later and other features in the future). should incorporate ability to take picture of the invoice. should automatically categorize the expenses too."
 
