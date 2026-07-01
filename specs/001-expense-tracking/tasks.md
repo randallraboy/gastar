@@ -184,4 +184,4 @@ Polish:  T040, T042, T043 together
 
 ### Spec status tracking (constitution Principle I)
 
-- Move spec to `in-progress` (LeanSpec tooling) before T001; `complete` after T044
+- Set `spec.md` Status to `in-progress` before T001; `complete` after T044

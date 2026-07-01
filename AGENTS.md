@@ -1,124 +1,47 @@
-# gastar
+# gastar — Agent Guide
 
-## 🚨 CRITICAL: Before ANY Task
+Personal expense tracker for 1–2 allowlisted users: manual expenses, receipt-photo staging
+with an owner-run local parsing harness, auto-categorization. Active feature:
+`specs/001-expense-tracking/` (see `.specify/feature.json`).
 
-**STOP and check these first:**
+## Workflow (Spec Kit)
 
-1. **Discover context** → Use `board` tool to see project state
-2. **Search for related work** → Use `search` tool before creating new specs
-3. **Never create files manually** → Always use `create` tool for new specs
+- Constitution: `.specify/memory/constitution.md` — gates every plan. Read it first.
+- Specs live in `specs/NNN-name/` (`spec.md`, `plan.md`, `tasks.md`, `contracts/`, …).
+- Lifecycle: `/speckit-specify` → `/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` →
+  `/speckit-implement`. Manage specs only through these commands — never hand-create spec
+  scaffolding.
+- Non-trivial change (multi-part feature, breaking change, design decision) → spec first.
+  Bug fixes and trivial changes skip specs.
+- Keep `spec.md` **Status** current: `Draft` → `in-progress` (before coding) → `complete`.
+  Record decisions and learnings in the spec as work happens.
 
-> **Why?** Skipping discovery creates duplicate work. Manual file creation breaks LeanSpec tooling.
+## Tech Stack (constitution v2.0.1)
 
-## 🔧 Managing Specs
+- TypeScript / Next.js (App Router) on Vercel — UI + serverless API, single project.
+- Neon Postgres via Drizzle ORM; Vercel Blob for receipt images.
+- Auth.js with Google login + `ALLOWED_EMAILS` allowlist; no local passwords.
+- Receipt processing is async: staging queue + local harness CLI (`harness/`) driven by the
+  `receipt-harness` project skill. Hosted app never calls third-party AI/OCR.
+- Legacy Spring Boot / Gradle / MongoDB / Angular is retired; removal tracked in feature 001.
 
-### MCP Tools (Preferred) with CLI Fallback
+## Quality Gates
 
-| Action         | MCP Tool   | CLI Fallback                                   |
-| -------------- | ---------- | ---------------------------------------------- |
-| Project status | `board`    | `lean-spec board`                              |
-| List specs     | `list`     | `lean-spec list`                               |
-| Search specs   | `search`   | `lean-spec search "query"`                     |
-| View spec      | `view`     | `lean-spec view <spec>`                        |
-| Create spec    | `create`   | `lean-spec create <name>`                      |
-| Update spec    | `update`   | `lean-spec update <spec> --status <status>`    |
-| Link specs     | `link`     | `lean-spec link <spec> --depends-on <other>`   |
-| Unlink specs   | `unlink`   | `lean-spec unlink <spec> --depends-on <other>` |
-| Dependencies   | `deps`     | `lean-spec deps <spec>`                        |
-| Token count    | `tokens`   | `lean-spec tokens <spec>`                      |
-| Validate specs | `validate` | `lean-spec validate`                           |
+`npm run lint` · `npm run build` · `npm test` (Vitest) — all green before any change is done.
+Bug fixes MUST add a regression test.
 
-## ⚠️ Core Rules
+## Git Commits
 
-| Rule                                | Details                                                                                                               |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **NEVER edit frontmatter manually** | Use `update`, `link`, `unlink` for: `status`, `priority`, `tags`, `assignee`, `transitions`, timestamps, `depends_on` |
-| **ALWAYS link spec references**     | Content mentions another spec → `lean-spec link <spec> --depends-on <other>`                                          |
-| **Track status transitions**        | `planned` → `in-progress` (before coding) → `complete` (after done)                                                   |
-| **Keep specs current**              | Document progress, decisions, and learnings as work happens. Obsolete specs mislead both humans and AI                |
-| **No nested code blocks**           | Use indentation instead                                                                                               |
+- AI attribution: when more than 50% of a commit's changes were generated or assisted by AI,
+  add a co-author trailer naming the model:
 
-### 🚫 Common Mistakes
+  ```text
+  Co-Authored-By: <Model + Version> <model-name-lowercase@ai-company-name>
+  ```
 
-| ❌ Don't                             | ✅ Do Instead                                |
-| ----------------------------------- | ------------------------------------------- |
-| Create spec files manually          | Use `create` tool                           |
-| Skip discovery                      | Run `board` and `search` first              |
-| Leave status as "planned"           | Update to `in-progress` before coding       |
-| Edit frontmatter manually           | Use `update` tool                           |
-| Complete spec without documentation | Document progress, prompts, learnings first |
+  Example: `Co-Authored-By: Claude Fable 5 <claude-fable-5@anthropic.com>`
 
-## 📋 SDD Workflow
+## Secrets
 
-```
-BEFORE: board → search → check existing specs
-DURING: update status to in-progress → code → document decisions → link dependencies
-AFTER:  document completion → update status to complete
-```
-
-**Status tracks implementation, NOT spec writing.**
-
-## Spec Dependencies
-
-Use `depends_on` to express blocking relationships between specs:
-- **`depends_on`** = True blocker, work order matters, directional (A depends on B)
-
-Link dependencies when one spec builds on another:
-```bash
-lean-spec link <spec> --depends-on <other-spec>
-```
-
-## When to Use Specs
-
-| ✅ Write spec        | ❌ Skip spec                |
-| ------------------- | -------------------------- |
-| Multi-part features | Bug fixes                  |
-| Breaking changes    | Trivial changes            |
-| Design decisions    | Self-explanatory refactors |
-
-## Token Thresholds
-
-| Tokens      | Status               |
-| ----------- | -------------------- |
-| <2,000      | ✅ Optimal            |
-| 2,000-3,500 | ✅ Good               |
-| 3,500-5,000 | ⚠️ Consider splitting |
-| >5,000      | 🔴 Must split         |
-
-## Quality Validation
-
-Before completing work, validate spec quality:
-```bash
-lean-spec validate              # Check structure and quality
-lean-spec validate --check-deps # Verify dependency alignment
-```
-
-Validation checks:
-- Missing required sections
-- Excessive length (>400 lines)
-- Content/frontmatter dependency misalignment
-- Invalid frontmatter fields
-
-## First Principles (Priority Order)
-
-1. **Context Economy** - <2,000 tokens optimal, >3,500 needs splitting
-2. **Signal-to-Noise** - Every word must inform a decision
-3. **Intent Over Implementation** - Capture why, let how emerge
-4. **Bridge the Gap** - Both human and AI must understand
-5. **Progressive Disclosure** - Add complexity only when pain is felt
-
-## Tech Stack & Quality Gates (constitution v2.0.0)
-
-- **Stack**: TypeScript / Next.js (App Router) on Vercel; Neon Postgres via Drizzle ORM;
-  Vercel Blob for receipt images; Auth.js with Google login + email allowlist.
-- **Receipt processing**: async — staging area + owner-run local harness (`harness/` CLI,
-  driven by the `receipt-harness` project skill). Hosted app never calls third-party AI/OCR.
-- **Gates before done**: `npm run lint`, `npm run build`, `npm test` (Vitest) — all green.
-- **Secrets**: env vars only (`.env.local` / Vercel settings). Never commit.
-- **Legacy**: Spring Boot / Gradle / MongoDB / Angular retired (removed during feature 001).
-- Active feature docs: `specs/001-expense-tracking/` (spec, plan, research, data-model,
-  contracts, quickstart).
-
----
-
-**Remember:** LeanSpec tracks what you're building. Keep specs in sync with your work!
+Env vars only (`.env.local` locally, Vercel project settings deployed). Never commit
+credentials, tokens, or allowlisted emails.

@@ -1,11 +1,14 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 → 2.0.0
-Rationale: MAJOR — Technology & Architecture Constraints redefined (Spring Boot/MongoDB/
-Angular/Gradle retired in favor of full Vercel stack + Neon Postgres) and quality-gate
-commands replaced. Decision recorded in specs/001-expense-tracking/spec.md Clarifications
-(Session 2026-07-01) and approved by the project owner.
+Version change: 2.0.0 → 2.0.1
+Rationale: PATCH — LeanSpec retired; Spec Kit is the sole spec tooling. Principle I wording
+updated; no semantic governance change. (.lean-spec/ and LeanSpec docs removed from repo.)
+
+Previous (2.0.0): MAJOR — Technology & Architecture Constraints redefined (Spring Boot/
+MongoDB/Angular/Gradle retired in favor of full Vercel stack + Neon Postgres) and
+quality-gate commands replaced. Decision recorded in specs/001-expense-tracking/spec.md
+Clarifications (Session 2026-07-01) and approved by the project owner.
 
 Modified principles:
   - I. Spec-Driven Development → unchanged
@@ -38,12 +41,12 @@ Follow-up TODOs:
 Every non-trivial change begins with a specification, not code. Multi-part features,
 breaking changes, and design decisions MUST be captured as a spec before implementation
 begins; bug fixes, trivial changes, and self-explanatory refactors MAY skip this step.
-Specs MUST be created and managed through the project tooling (LeanSpec / Spec Kit), never
-by editing spec files or frontmatter by hand. Status MUST track implementation reality:
-`planned` → `in-progress` (before coding) → `complete` (after done).
+Specs MUST be created and managed through Spec Kit (`/speckit-*` commands), never by
+hand-creating spec scaffolding. The spec's Status MUST track implementation reality:
+`Draft` → `in-progress` (before coding) → `complete` (after done).
 
-**Rationale**: Specs bridge human and AI understanding and prevent duplicate work. Manual
-file or frontmatter edits corrupt the tooling that keeps that shared context reliable.
+**Rationale**: Specs bridge human and AI understanding and prevent duplicate work. Bypassing
+the tooling corrupts the shared context that keeps humans and agents aligned.
 
 ### II. Quality Gates & Testing
 
@@ -136,4 +139,4 @@ Principle V MUST be justified or removed. For day-to-day AI and contributor guid
 `AGENTS.md` and the Spec Kit templates in `.specify/templates/`, which MUST stay consistent
 with this constitution.
 
-**Version**: 2.0.0 | **Ratified**: 2026-07-01 | **Last Amended**: 2026-07-01
+**Version**: 2.0.1 | **Ratified**: 2026-07-01 | **Last Amended**: 2026-07-01

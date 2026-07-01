@@ -1,42 +1,20 @@
 # Specs
 
-This directory contains LeanSpec specifications for this project.
+Feature specifications managed with [Spec Kit](https://github.com/github/spec-kit).
 
-## Quick Start
+Each feature lives in a numbered directory:
 
-```bash
-# Create a new spec
-leanspec create my-feature
-
-# List all specs
-leanspec list
-
-# View the board
-leanspec board
-
-# Validate specs
-leanspec validate
+```text
+specs/
+└── 001-expense-tracking/
+    ├── spec.md          # What & why (user stories, requirements)
+    ├── plan.md          # Technical plan + constitution check
+    ├── research.md      # Decisions with rationale
+    ├── data-model.md    # Entities & schema
+    ├── contracts/       # API contracts
+    ├── quickstart.md    # Validation scenarios
+    └── tasks.md         # Executable task breakdown
 ```
 
-## Structure
-
-Each spec lives in a numbered directory with a `README.md` file:
-
-```
-├── 001-feature-name/
-│   └── README.md
-└── 002-another-feature/
-    └── README.md
-```
-
-## Spec Status Values
-
-- `draft` - Being authored or refined
-- `planned` - Not yet started
-- `in-progress` - Currently being worked on
-- `complete` - Finished
-- `archived` - No longer relevant
-
-## Learn More
-
-Visit [leanspec.dev](https://leanspec.dev) for documentation.
+Workflow: `/speckit-specify` → `/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` →
+`/speckit-implement`. Governance: `.specify/memory/constitution.md`.
