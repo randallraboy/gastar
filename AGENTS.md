@@ -107,6 +107,18 @@ Validation checks:
 4. **Bridge the Gap** - Both human and AI must understand
 5. **Progressive Disclosure** - Add complexity only when pain is felt
 
+## Tech Stack & Quality Gates (constitution v2.0.0)
+
+- **Stack**: TypeScript / Next.js (App Router) on Vercel; Neon Postgres via Drizzle ORM;
+  Vercel Blob for receipt images; Auth.js with Google login + email allowlist.
+- **Receipt processing**: async — staging area + owner-run local harness (`harness/` CLI,
+  driven by the `receipt-harness` project skill). Hosted app never calls third-party AI/OCR.
+- **Gates before done**: `npm run lint`, `npm run build`, `npm test` (Vitest) — all green.
+- **Secrets**: env vars only (`.env.local` / Vercel settings). Never commit.
+- **Legacy**: Spring Boot / Gradle / MongoDB / Angular retired (removed during feature 001).
+- Active feature docs: `specs/001-expense-tracking/` (spec, plan, research, data-model,
+  contracts, quickstart).
+
 ---
 
 **Remember:** LeanSpec tracks what you're building. Keep specs in sync with your work!

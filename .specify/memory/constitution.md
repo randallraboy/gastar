@@ -1,29 +1,32 @@
 <!--
 Sync Impact Report
 ==================
-Version change: (template / unversioned) → 1.0.0
-Rationale: Initial ratification of the gastar project constitution (MAJOR baseline).
+Version change: 1.0.0 → 2.0.0
+Rationale: MAJOR — Technology & Architecture Constraints redefined (Spring Boot/MongoDB/
+Angular/Gradle retired in favor of full Vercel stack + Neon Postgres) and quality-gate
+commands replaced. Decision recorded in specs/001-expense-tracking/spec.md Clarifications
+(Session 2026-07-01) and approved by the project owner.
 
 Modified principles:
-  - [PRINCIPLE_1_NAME] → I. Spec-Driven Development
-  - [PRINCIPLE_2_NAME] → II. Quality Gates & Testing
-  - [PRINCIPLE_3_NAME] → III. Consistent Formatting & Style
-  - [PRINCIPLE_4_NAME] → IV. Secure by Default
-  - [PRINCIPLE_5_NAME] → V. Simplicity First (YAGNI)
+  - I. Spec-Driven Development → unchanged
+  - II. Quality Gates & Testing → gate commands replaced (Gradle/JUnit → npm build/Vitest)
+  - III. Consistent Formatting & Style → Spotless/Google Java Format → Prettier + ESLint
+  - IV. Secure by Default → OAuth2/OIDC retained; allowlist model and env-var secrets on
+    Vercel/Neon made explicit; harness token added
+  - V. Simplicity First (YAGNI) → unchanged
 
-Added sections:
-  - Technology & Architecture Constraints (was [SECTION_2_NAME])
-  - Development Workflow & Quality Gates (was [SECTION_3_NAME])
-
-Removed sections: none
+Added sections: none
+Removed sections: none (Technology & Architecture Constraints content replaced)
 
 Templates requiring updates:
-  - .specify/templates/plan-template.md ✅ compatible (Constitution Check gate references this file)
+  - .specify/templates/plan-template.md ✅ compatible (generic Constitution Check gate)
   - .specify/templates/spec-template.md ✅ compatible (no changes required)
-  - .specify/templates/tasks-template.md ✅ compatible (tests remain optional per Principle II)
-  - AGENTS.md ✅ compatible (LeanSpec workflow aligns with Principle I)
+  - .specify/templates/tasks-template.md ✅ compatible
+  - AGENTS.md ⚠ pending (still describes Spring Boot/Gradle/Angular workflow; update when
+    old scaffolding is removed during implementation)
 
-Follow-up TODOs: none
+Follow-up TODOs:
+  - Update AGENTS.md after the Vercel/Next.js scaffolding lands (tracked in tasks).
 -->
 
 # gastar Constitution
@@ -44,36 +47,37 @@ file or frontmatter edits corrupt the tooling that keeps that shared context rel
 
 ### II. Quality Gates & Testing
 
-The project MUST build cleanly before any change is considered done: `./gradlew build` for
-the backend and `ng build` for the web frontend. Tests are the guardrail for behavior that
-matters: bug fixes MUST add a regression test, and new behavioral logic SHOULD ship with
-tests. Backend tests use JUnit 5 (`./gradlew test`); frontend tests use Vitest (`ng test`).
-A change MUST NOT be merged while any existing test is failing.
+The project MUST build cleanly before any change is considered done: `npm run build` at the
+application root. Tests are the guardrail for behavior that matters: bug fixes MUST add a
+regression test, and new behavioral logic SHOULD ship with tests. Tests use Vitest
+(`npm test` / `npm run test`). A change MUST NOT be merged while any existing test is
+failing. Type checking MUST pass (`tsc --noEmit` or the build's type check step).
 
 **Rationale**: Automated gates catch regressions cheaply and keep a small, personal codebase
 trustworthy without heavyweight process.
 
 ### III. Consistent Formatting & Style
 
-All Java code MUST pass Spotless (`./gradlew spotlessCheck`) using the configured Google Java
-Format (AOSP) profile, with imports ordered, unused imports removed, and the required license
-header present. Formatting is enforced by tooling, not debated in review: run
-`./gradlew spotlessApply` before committing. Frontend code MUST follow the Angular project's
-configured conventions.
+All code MUST pass the configured linter and formatter: Prettier for formatting and ESLint
+for lint rules (`npm run lint`). Formatting is enforced by tooling, not debated in review:
+run the formatter before committing. TypeScript MUST be used for application and harness
+code; new untyped JavaScript files are not accepted.
 
 **Rationale**: Automated formatting removes bikeshedding, keeps diffs meaningful, and makes
 the code uniform regardless of author or tool.
 
 ### IV. Secure by Default
 
-Authentication and authorization MUST NOT be weakened. Requests require an authenticated
-user, and privileged access is gated by explicit roles (e.g. `ROLE_ADMIN`) via the OAuth2 /
-OIDC login flow. Secrets — client IDs, client secrets, admin emails, credentials — MUST live
-in `secrets.properties` or environment-provided config and MUST NEVER be committed to the
-repository. Placeholder values in tracked config MUST remain placeholders.
+Authentication and authorization MUST NOT be weakened. Sign-in is Google OAuth2/OIDC only;
+no local password store. Access MUST be restricted to an explicit allowlist of Google
+accounts — a non-allowlisted account that authenticates with Google MUST still be rejected
+by the app. The owner-run processing harness MUST authenticate with its own secret token,
+scoped to receipt staging endpoints. Secrets — OAuth client credentials, database URLs,
+harness tokens, allowlisted emails — MUST live in environment variables (Vercel project
+settings / `.env.local`) and MUST NEVER be committed to the repository.
 
-**Rationale**: The app handles a user's personal financial data through third-party identity;
-a single leaked secret or relaxed access rule compromises the whole system.
+**Rationale**: The app holds personal financial data behind third-party identity; a single
+leaked secret or relaxed access rule compromises the whole system.
 
 ### V. Simplicity First (YAGNI)
 
@@ -87,13 +91,22 @@ main long-term maintenance risk for a small codebase.
 
 ## Technology & Architecture Constraints
 
-- **Backend**: Spring Boot 3.3.x on Java 21 (toolchain-pinned). Persistence via MongoDB
-  (Spring Data MongoDB). Build tool is Gradle (use the wrapper: `./gradlew`).
-- **Frontend**: Angular 21 single-page app in `web/`, styled with Bootstrap / ng-bootstrap
-  and FontAwesome. Package management via npm.
-- **Identity**: OAuth2 / OIDC client (Google) for login; no local password store.
-- **Local infrastructure**: MongoDB runs via the committed Docker Compose file
-  (`src/docker/compose.yaml`), managed by Spring Boot Docker Compose support.
+- **Platform**: Vercel hosts the site and its serverless API; there is no separately hosted
+  backend service.
+- **Application**: TypeScript web application (frontend + API routes in one project) deployed
+  to Vercel. Package management via npm.
+- **Database**: Neon (managed Postgres, serverless driver). One database; no additional
+  datastores without a spec.
+- **File storage**: Receipt images stored in Vercel Blob (or equivalent Vercel-native store);
+  staged images are temporary and cleaned up when resolved.
+- **Identity**: Google OAuth2/OIDC with an allowlist of one or two accounts; no local
+  passwords.
+- **Receipt processing**: Asynchronous. Images land in a staging area; an owner-run local
+  harness (TypeScript CLI in this repo, driven by a project-level Claude skill) downloads
+  pending receipts, parses them, and posts results back as draft expenses. The hosted app
+  MUST NOT call third-party AI/OCR services directly.
+- **Legacy stack**: Spring Boot, Gradle, MongoDB, Docker Compose, and the Angular app are
+  retired; remaining scaffolding is removed as part of feature 001 implementation.
 - Introducing a new datastore, framework, or major dependency is a design decision and MUST
   be captured in a spec (Principle I) with justification (Principle V).
 
@@ -102,8 +115,7 @@ main long-term maintenance risk for a small codebase.
 - **Before coding**: discover existing context and specs via project tooling; create or move
   the relevant spec to `in-progress`.
 - **While coding**: keep the spec current with decisions and learnings; make focused commits.
-- **Before done**: run `./gradlew spotlessApply` then `./gradlew build` (backend) and, for
-  web changes, `ng build` and `ng test`. All must pass.
+- **Before done**: run `npm run lint`, `npm run build`, and `npm test`. All must pass.
 - **After done**: document completion in the spec and move status to `complete`.
 - Constitution compliance is a gate during planning (`Constitution Check` in
   `.specify/templates/plan-template.md`). Violations MUST be justified in the plan's
@@ -124,4 +136,4 @@ Principle V MUST be justified or removed. For day-to-day AI and contributor guid
 `AGENTS.md` and the Spec Kit templates in `.specify/templates/`, which MUST stay consistent
 with this constitution.
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-01 | **Last Amended**: 2026-07-01
+**Version**: 2.0.0 | **Ratified**: 2026-07-01 | **Last Amended**: 2026-07-01
