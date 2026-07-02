@@ -185,3 +185,17 @@ Polish:  T040, T042, T043 together
 ### Spec status tracking (constitution Principle I)
 
 - Set `spec.md` Status to `in-progress` before T001; `complete` after T044
+
+---
+
+## Phase 7: Convergence
+
+**Purpose**: Close gaps found by `/speckit-converge` on 2026-07-01 between the implemented
+codebase and spec/plan/contracts. Ordered by severity (HIGH first).
+
+- [X] T045 Restrict receipt image blob access: replace `access: "public"` upload in `src/lib/blob.ts` so staged/attached receipt images are not world-readable by URL (non-public Blob access or equivalent guarded delivery), keeping harness and UI delivery on the existing authenticated image routes, per plan: R4 blob storage decision (contradicts)
+- [X] T046 Validate draft-confirm input: parse the request body with `expenseUpdateSchema` in `confirmExpense` (`src/lib/expenses.ts`) or `app/api/expenses/[id]/confirm/route.ts` so invalid amounts/dates return plain-language 400 responses instead of DB-constraint 500s, with a regression test, per FR-015 (partial)
+- [X] T047 Map ZodError to plain-language 400 responses centrally (e.g. in `handleApiError` in `src/lib/authz.ts`), replacing the fragile `err.message.includes("valid")` match in `app/api/expenses/route.ts` POST and covering PATCH `app/api/expenses/[id]/route.ts`, with a regression test, per FR-015 (partial)
+- [X] T048 Guard receipt discard by status: restrict `deleteReceipt` (`src/lib/receipts.ts` / `app/api/receipts/[id]/route.ts` DELETE) to `pending`/`unreadable` receipts so discarding a `processed` receipt cannot delete the blob still referenced by its draft expense, with a regression test, per contracts: DELETE /api/receipts/{id} + FR-008 (partial)
+- [X] T049 Commit drizzle migration metadata: remove `drizzle/meta/` from `.gitignore` and track `drizzle/meta/_journal.json` and snapshot files so `npm run db:migrate` works from a fresh clone, per plan: R2 database access decision (contradicts)
+- [X] T050 Reconcile `src/lib/receipt-state.ts` with domain code: route the status checks in `src/lib/receipts.ts`, `app/api/receipts/[id]/result/route.ts`, and the manual-conversion path in `src/lib/expenses.ts` through its transition helpers, or remove the module (currently imported only by tests, duplicating inline logic), per T025 (unrequested)

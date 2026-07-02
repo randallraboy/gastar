@@ -17,3 +17,7 @@ export function canMarkUnreadable(status: ReceiptStatus): boolean {
 export function canConvertToManual(status: ReceiptStatus): boolean {
   return status === "pending" || status === "unreadable";
 }
+
+export function canDiscardReceipt(status: ReceiptStatus): boolean {
+  return status === "pending" || status === "unreadable";
+}

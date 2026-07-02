@@ -49,12 +49,6 @@ export async function POST(request: Request) {
 
     return Response.json(toExpenseDto(result.expense!), { status: 201 });
   } catch (err) {
-    if (err instanceof Error && err.message.includes("valid")) {
-      return Response.json(
-        { error: { code: "VALIDATION_ERROR", message: err.message } },
-        { status: 400 },
-      );
-    }
     return handleApiError(err);
   }
 }

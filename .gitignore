@@ -32,8 +32,5 @@ Thumbs.db
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Drizzle
-drizzle/meta/
-
 # Legacy (removed during migration)
 .gradle/

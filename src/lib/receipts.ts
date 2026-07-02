@@ -4,6 +4,7 @@ import { pendingReceipts } from "@/lib/db/schema";
 import type { PendingReceipt, User } from "@/lib/db/schema";
 import { uploadStagingBlob, deleteBlob } from "@/lib/blob";
 import { validateUploadFile } from "@/lib/validation";
+import { canDiscardReceipt, type ReceiptStatus } from "@/lib/receipt-state";
 
 export async function createPendingReceipt(
   user: User,
@@ -68,7 +69,9 @@ export async function markUnreadable(
   return updated ?? null;
 }
 
-export async function deleteReceipt(id: string): Promise<boolean> {
+export type DeleteReceiptResult = "deleted" | "not_found" | "invalid_status";
+
+export async function deleteReceipt(id: string): Promise<DeleteReceiptResult> {
   const db = getDb();
   const [receipt] = await db
     .select()
@@ -77,7 +80,11 @@ export async function deleteReceipt(id: string): Promise<boolean> {
     .limit(1);
 
   if (!receipt) {
-    return false;
+    return "not_found";
+  }
+
+  if (!canDiscardReceipt(receipt.status as ReceiptStatus)) {
+    return "invalid_status";
   }
 
   try {
@@ -87,5 +94,5 @@ export async function deleteReceipt(id: string): Promise<boolean> {
   }
 
   await db.delete(pendingReceipts).where(eq(pendingReceipts.id, id));
-  return true;
+  return "deleted";
 }

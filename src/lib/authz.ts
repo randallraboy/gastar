@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "crypto";
+import { ZodError } from "zod";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -108,6 +109,10 @@ export async function requireUserOrHarness(request: Request): Promise<User | nul
 export function handleApiError(err: unknown): Response {
   if (err instanceof ApiError) {
     return err.toResponse();
+  }
+  if (err instanceof ZodError) {
+    const message = err.issues.map((issue) => issue.message).join("; ");
+    return jsonError("VALIDATION_ERROR", message, 400);
   }
   console.error(err);
   return jsonError("INTERNAL_ERROR", "Something went wrong", 500);

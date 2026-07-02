@@ -1,4 +1,4 @@
-import { put, del } from "@vercel/blob";
+import { put, del, get } from "@vercel/blob";
 
 const STAGING_PREFIX = "receipts/staging/";
 
@@ -8,7 +8,7 @@ export async function uploadStagingBlob(
   contentType: string,
 ): Promise<string> {
   const blob = await put(`${STAGING_PREFIX}${filename}`, data, {
-    access: "public",
+    access: "private",
     contentType,
     addRandomSuffix: true,
   });
@@ -17,6 +17,22 @@ export async function uploadStagingBlob(
 
 export async function deleteBlob(key: string): Promise<void> {
   await del(key);
+}
+
+export type BlobContent = {
+  stream: ReadableStream<Uint8Array>;
+  contentType: string;
+};
+
+export async function getBlobContent(key: string): Promise<BlobContent | null> {
+  const result = await get(key, { access: "private" });
+  if (!result || result.statusCode !== 200) {
+    return null;
+  }
+  return {
+    stream: result.stream,
+    contentType: result.blob.contentType,
+  };
 }
 
 export function receiptImagePath(receiptId: string): string {

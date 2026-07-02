@@ -7,12 +7,25 @@ export async function DELETE(_request: Request, { params }: Params) {
   try {
     await requireUser();
     const { id } = await params;
-    const deleted = await deleteReceipt(id);
+    const result = await deleteReceipt(id);
 
-    if (!deleted) {
+    if (result === "not_found") {
       return Response.json(
         { error: { code: "NOT_FOUND", message: "Receipt not found" } },
         { status: 404 },
+      );
+    }
+
+    if (result === "invalid_status") {
+      return Response.json(
+        {
+          error: {
+            code: "INVALID_STATUS",
+            message:
+              "Only pending or unreadable receipts can be discarded — this one already has a draft expense",
+          },
+        },
+        { status: 409 },
       );
     }
 

@@ -1,7 +1,10 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import { migrate } from "drizzle-orm/neon-http/migrator";
-import * as schema from "../src/lib/db/schema";
+import "./load-env";
+import { neonConfig, Pool } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { migrate } from "drizzle-orm/neon-serverless/migrator";
+import ws from "ws";
+
+neonConfig.webSocketConstructor = ws;
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -9,10 +12,15 @@ async function main() {
     throw new Error("DATABASE_URL is not set");
   }
 
-  const sql = neon(url);
-  const db = drizzle(sql, { schema });
-  await migrate(db, { migrationsFolder: "./drizzle" });
-  console.log("Migrations applied");
+  const pool = new Pool({ connectionString: url });
+  const db = drizzle(pool);
+
+  try {
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    console.log("Migrations applied");
+  } finally {
+    await pool.end();
+  }
 }
 
 main().catch((err) => {

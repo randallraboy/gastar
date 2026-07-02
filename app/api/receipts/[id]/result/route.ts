@@ -1,5 +1,6 @@
 import { requireHarness, handleApiError } from "@/lib/authz";
 import { getReceiptById, markUnreadable } from "@/lib/receipts";
+import { canProcessReceipt, type ReceiptStatus } from "@/lib/receipt-state";
 import { createDraftFromHarness } from "@/lib/expenses";
 import { harnessResultSchema } from "@/lib/validation";
 import { toExpenseDto, toPendingReceiptDto } from "@/lib/api-types";
@@ -24,7 +25,7 @@ export async function POST(request: Request, { params }: Params) {
       );
     }
 
-    if (receipt.status !== "pending") {
+    if (!canProcessReceipt(receipt.status as ReceiptStatus)) {
       return Response.json(
         {
           error: { code: "NOT_PENDING", message: "Receipt has already been processed" },
@@ -66,17 +67,6 @@ export async function POST(request: Request, { params }: Params) {
 
     return Response.json({ draftExpense: toExpenseDto(draft) }, { status: 201 });
   } catch (err) {
-    if (err instanceof Error && err.name === "ZodError") {
-      return Response.json(
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Invalid harness result payload",
-          },
-        },
-        { status: 400 },
-      );
-    }
     return handleApiError(err);
   }
 }

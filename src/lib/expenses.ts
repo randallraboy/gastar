@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/schema";
 import type { Expense, User } from "@/lib/db/schema";
 import { normalizeMerchant } from "@/lib/normalize";
+import { canConvertToManual, type ReceiptStatus } from "@/lib/receipt-state";
 import { expenseCreateSchema, expenseUpdateSchema } from "@/lib/validation";
 import { categorizeExpense, getUncategorizedId } from "@/lib/categorize";
 import { deleteBlob } from "@/lib/blob";
@@ -159,7 +160,7 @@ export async function createExpense(user: User, input: CreateExpenseInput) {
       .where(eq(pendingReceipts.id, parsed.pendingReceiptId))
       .limit(1);
 
-    if (!receipt || (receipt.status !== "pending" && receipt.status !== "unreadable")) {
+    if (!receipt || !canConvertToManual(receipt.status as ReceiptStatus)) {
       throw new Error("Pending receipt not found");
     }
 
@@ -286,6 +287,7 @@ export async function confirmExpense(
   _user: User,
   input: z.infer<typeof expenseUpdateSchema> = {},
 ) {
+  const parsed = expenseUpdateSchema.parse(input);
   const db = getDb();
   const [existing] = await db
     .select()
@@ -297,12 +299,12 @@ export async function confirmExpense(
   }
 
   const merged = {
-    amountCents: input.amountCents ?? existing.amountCents,
-    expenseDate: input.expenseDate ?? existing.expenseDate,
-    merchant: input.merchant ?? existing.merchant,
-    description: input.description ?? existing.description,
-    categoryId: input.categoryId ?? existing.categoryId,
-    overrideDuplicate: input.overrideDuplicate,
+    amountCents: parsed.amountCents ?? existing.amountCents,
+    expenseDate: parsed.expenseDate ?? existing.expenseDate,
+    merchant: parsed.merchant ?? existing.merchant,
+    description: parsed.description ?? existing.description,
+    categoryId: parsed.categoryId ?? existing.categoryId,
+    overrideDuplicate: parsed.overrideDuplicate,
   };
 
   const merchantNormalized = normalizeMerchant(merged.merchant);
@@ -330,9 +332,9 @@ export async function confirmExpense(
     updatedAt: new Date(),
   };
 
-  if (input.categoryId && input.categoryId !== existing.categoryId) {
+  if (parsed.categoryId && parsed.categoryId !== existing.categoryId) {
     updates.categoryWasAuto = false;
-    await upsertMerchantCorrection(merchantNormalized, input.categoryId);
+    await upsertMerchantCorrection(merchantNormalized, parsed.categoryId);
   }
 
   const [confirmed] = await db

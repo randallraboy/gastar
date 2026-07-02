@@ -1,6 +1,6 @@
-import { head } from "@vercel/blob";
 import { requireUserOrHarness, handleApiError } from "@/lib/authz";
 import { getReceiptById } from "@/lib/receipts";
+import { getBlobContent } from "@/lib/blob";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,13 +17,17 @@ export async function GET(request: Request, { params }: Params) {
       );
     }
 
-    const meta = await head(receipt.blobKey);
-    const imageResponse = await fetch(meta.url);
-    const contentType = imageResponse.headers.get("content-type") ?? "image/jpeg";
+    const content = await getBlobContent(receipt.blobKey);
+    if (!content) {
+      return Response.json(
+        { error: { code: "NOT_FOUND", message: "Receipt image not found" } },
+        { status: 404 },
+      );
+    }
 
-    return new Response(imageResponse.body, {
+    return new Response(content.stream, {
       headers: {
-        "Content-Type": contentType,
+        "Content-Type": content.contentType,
         "Cache-Control": "private, max-age=3600",
       },
     });
