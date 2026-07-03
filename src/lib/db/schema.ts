@@ -12,6 +12,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { BudgetCategory } from "@/lib/budget-categories";
 
 export const users = pgTable(
   "users",
@@ -25,24 +26,6 @@ export const users = pgTable(
   (table) => [uniqueIndex("users_google_sub_idx").on(table.googleSub)],
 );
 
-export const categories = pgTable(
-  "categories",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    name: text("name").notNull(),
-    isSystem: boolean("is_system").notNull().default(false),
-    keywords: text("keywords")
-      .array()
-      .notNull()
-      .default(sql`'{}'::text[]`),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    uniqueIndex("categories_name_lower_idx").on(sql`lower(${table.name})`),
-    check("categories_name_nonempty", sql`length(trim(${table.name})) > 0`),
-  ],
-);
-
 export const expenses = pgTable(
   "expenses",
   {
@@ -53,9 +36,7 @@ export const expenses = pgTable(
     merchant: text("merchant").notNull(),
     merchantNormalized: text("merchant_normalized").notNull(),
     description: text("description"),
-    categoryId: uuid("category_id")
-      .notNull()
-      .references(() => categories.id),
+    category: text("category").$type<BudgetCategory>().notNull(),
     status: text("status").notNull().default("confirmed"),
     source: text("source").notNull(),
     receiptBlobKey: text("receipt_blob_key"),
@@ -72,8 +53,12 @@ export const expenses = pgTable(
     check("expenses_status_check", sql`${table.status} IN ('draft', 'confirmed')`),
     check("expenses_source_check", sql`${table.source} IN ('manual', 'photo')`),
     check("expenses_merchant_nonempty", sql`length(trim(${table.merchant})) > 0`),
+    check(
+      "expenses_category_check",
+      sql`${table.category} IN ('Needs', 'Wants', 'Savings')`,
+    ),
     index("expenses_expense_date_idx").on(table.expenseDate),
-    index("expenses_category_id_idx").on(table.categoryId),
+    index("expenses_category_idx").on(table.category),
     index("expenses_status_idx").on(table.status),
     index("expenses_duplicate_idx").on(
       table.expenseDate,
@@ -112,18 +97,19 @@ export const merchantCorrections = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     merchantNormalized: text("merchant_normalized").notNull().unique(),
-    categoryId: uuid("category_id")
-      .notNull()
-      .references(() => categories.id),
+    category: text("category").$type<BudgetCategory>().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex("merchant_corrections_merchant_idx").on(table.merchantNormalized),
+    check(
+      "merchant_corrections_category_check",
+      sql`${table.category} IN ('Needs', 'Wants', 'Savings')`,
+    ),
   ],
 );
 
 export type User = typeof users.$inferSelect;
-export type Category = typeof categories.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
 export type PendingReceipt = typeof pendingReceipts.$inferSelect;
 export type MerchantCorrection = typeof merchantCorrections.$inferSelect;

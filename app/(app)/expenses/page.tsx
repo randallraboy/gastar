@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ExpenseForm, formatCad, type CategoryOption } from "@/components/ExpenseForm";
+import { ExpenseForm, formatCad } from "@/components/ExpenseForm";
+import { BUDGET_CATEGORIES, type BudgetCategory } from "@/lib/budget-categories";
 
 type Expense = {
   id: string;
@@ -9,30 +10,32 @@ type Expense = {
   expenseDate: string;
   merchant: string;
   description: string | null;
-  categoryId: string;
+  category: BudgetCategory;
   categoryWasAuto: boolean;
   status: "draft" | "confirmed";
   receiptImageUrl: string | null;
+};
+
+type CategoryTotal = {
+  category: BudgetCategory;
+  sumCents: number;
 };
 
 type ListResponse = {
   items: Expense[];
   total: number;
   sumCents: number;
+  categoryTotals: CategoryTotal[];
 };
-
-function categoryName(categories: CategoryOption[], id: string) {
-  return categories.find((c) => c.id === id)?.name ?? "—";
-}
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [drafts, setDrafts] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [categoryTotals, setCategoryTotals] = useState<CategoryTotal[]>([]);
   const [sumCents, setSumCents] = useState(0);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<BudgetCategory | "">("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [confirmingDraft, setConfirmingDraft] = useState<Expense | null>(null);
@@ -43,18 +46,12 @@ export default function ExpensesPage() {
   );
   const [loading, setLoading] = useState(true);
 
-  const loadCategories = useCallback(async () => {
-    const res = await fetch("/api/categories");
-    const data = await res.json();
-    setCategories(data);
-  }, []);
-
   const loadExpenses = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ status: "confirmed" });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    if (categoryFilter) params.set("categoryId", categoryFilter);
+    if (categoryFilter) params.set("category", categoryFilter);
 
     const [confirmedRes, draftsRes] = await Promise.all([
       fetch(`/api/expenses?${params}`),
@@ -66,13 +63,10 @@ export default function ExpensesPage() {
 
     setExpenses(confirmed.items);
     setSumCents(confirmed.sumCents);
+    setCategoryTotals(confirmed.categoryTotals);
     setDrafts(draftData.items);
     setLoading(false);
   }, [from, to, categoryFilter]);
-
-  useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
 
   useEffect(() => {
     loadExpenses();
@@ -84,7 +78,7 @@ export default function ExpensesPage() {
       expenseDate: string;
       merchant: string;
       description: string;
-      categoryId: string;
+      category: BudgetCategory;
       overrideDuplicate?: boolean;
       pendingReceiptId?: string;
     },
@@ -96,7 +90,7 @@ export default function ExpensesPage() {
       expenseDate: values.expenseDate,
       merchant: values.merchant,
       description: values.description || null,
-      categoryId: values.categoryId,
+      category: values.category,
       overrideDuplicate: values.overrideDuplicate,
       pendingReceiptId: values.pendingReceiptId,
     };
@@ -150,11 +144,11 @@ export default function ExpensesPage() {
     await loadExpenses();
   }
 
-  async function quickCategoryChange(expense: Expense, categoryId: string) {
+  async function quickCategoryChange(expense: Expense, category: BudgetCategory) {
     await fetch(`/api/expenses/${expense.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ categoryId }),
+      body: JSON.stringify({ category }),
     });
     await loadExpenses();
   }
@@ -219,6 +213,28 @@ export default function ExpensesPage() {
         </section>
       )}
 
+      <section style={{ marginBottom: "var(--space-5)" }}>
+        <h2>Spending by category</h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: "var(--space-3)",
+          }}
+        >
+          {categoryTotals.map(({ category, sumCents: total }) => (
+            <div key={category} className="card">
+              <div style={{ fontSize: "0.875rem", color: "var(--muted)" }}>
+                {category}
+              </div>
+              <div style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+                {formatCad(total)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <div className="toolbar">
         <div className="form-group">
           <label htmlFor="from">From</label>
@@ -246,12 +262,12 @@ export default function ExpensesPage() {
             id="categoryFilter"
             className="input"
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => setCategoryFilter(e.target.value as BudgetCategory | "")}
           >
             <option value="">All</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+            {BUDGET_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
@@ -288,13 +304,15 @@ export default function ExpensesPage() {
                   <td>
                     <select
                       className="input"
-                      value={expense.categoryId}
-                      onChange={(e) => quickCategoryChange(expense, e.target.value)}
+                      value={expense.category}
+                      onChange={(e) =>
+                        quickCategoryChange(expense, e.target.value as BudgetCategory)
+                      }
                       style={{ width: "auto" }}
                     >
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
+                      {BUDGET_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
                         </option>
                       ))}
                     </select>
@@ -344,9 +362,7 @@ export default function ExpensesPage() {
                 </div>
                 <div className="expense-card-meta">{expense.expenseDate}</div>
                 <div>
-                  <span className="badge">
-                    {categoryName(categories, expense.categoryId)}
-                  </span>
+                  <span className="badge">{expense.category}</span>
                   {expense.categoryWasAuto && (
                     <span className="badge" style={{ marginLeft: "var(--space-2)" }}>
                       auto
@@ -359,13 +375,15 @@ export default function ExpensesPage() {
                 <div className="expense-card-actions">
                   <select
                     className="input"
-                    value={expense.categoryId}
-                    onChange={(e) => quickCategoryChange(expense, e.target.value)}
+                    value={expense.category}
+                    onChange={(e) =>
+                      quickCategoryChange(expense, e.target.value as BudgetCategory)
+                    }
                     aria-label={`Category for ${expense.merchant}`}
                   >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
+                    {BUDGET_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
                       </option>
                     ))}
                   </select>
@@ -409,7 +427,6 @@ export default function ExpensesPage() {
               />
             )}
             <ExpenseForm
-              categories={categories}
               initial={editing ?? undefined}
               onCancel={() => {
                 setShowForm(false);
@@ -436,7 +453,6 @@ export default function ExpensesPage() {
               />
             )}
             <ExpenseForm
-              categories={categories}
               initial={confirmingDraft}
               submitLabel="Confirm expense"
               onCancel={() => setConfirmingDraft(null)}

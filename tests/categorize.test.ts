@@ -1,67 +1,44 @@
 import { describe, expect, it } from "vitest";
 import { categorizeExpense } from "@/lib/categorize";
-import type { Category } from "@/lib/db/schema";
-
-const categories: Category[] = [
-  {
-    id: "groceries-id",
-    name: "Groceries",
-    isSystem: false,
-    keywords: ["metro", "grocery"],
-    createdAt: new Date(),
-  },
-  {
-    id: "dining-id",
-    name: "Dining",
-    isSystem: false,
-    keywords: ["restaurant"],
-    createdAt: new Date(),
-  },
-  {
-    id: "uncat-id",
-    name: "Uncategorized",
-    isSystem: true,
-    keywords: [],
-    createdAt: new Date(),
-  },
-];
+import type { BudgetCategory } from "@/lib/budget-categories";
 
 describe("categorizeExpense", () => {
   it("prefers correction over keyword", () => {
-    const corrections = new Map([["metro", "dining-id"]]);
-    const result = categorizeExpense(
-      { merchantNormalized: "metro" },
-      categories,
-      corrections,
-    );
-    expect(result.categoryId).toBe("dining-id");
+    const corrections = new Map<string, BudgetCategory>([["metro", "Wants"]]);
+    const result = categorizeExpense({ merchantNormalized: "metro" }, corrections);
+    expect(result.category).toBe("Wants");
     expect(result.categoryWasAuto).toBe(true);
   });
 
-  it("matches keyword rules", () => {
+  it("matches keyword rules for Needs", () => {
     const result = categorizeExpense(
       { merchantNormalized: "metro grocery" },
-      categories,
       new Map(),
     );
-    expect(result.categoryId).toBe("groceries-id");
+    expect(result.category).toBe("Needs");
+  });
+
+  it("matches keyword rules for Wants", () => {
+    const result = categorizeExpense(
+      { merchantNormalized: "local restaurant" },
+      new Map(),
+    );
+    expect(result.category).toBe("Wants");
   });
 
   it("uses category hint when no rule matches", () => {
     const result = categorizeExpense(
-      { merchantNormalized: "xyz", categoryHint: "Dining" },
-      categories,
+      { merchantNormalized: "xyz", categoryHint: "Savings" },
       new Map(),
     );
-    expect(result.categoryId).toBe("dining-id");
+    expect(result.category).toBe("Savings");
   });
 
-  it("falls back to Uncategorized", () => {
+  it("falls back to Needs", () => {
     const result = categorizeExpense(
       { merchantNormalized: "gibberish xyz" },
-      categories,
       new Map(),
     );
-    expect(result.categoryId).toBe("uncat-id");
+    expect(result.category).toBe("Needs");
   });
 });

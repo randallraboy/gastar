@@ -2,22 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { formatCad, parseDollarInput, centsToDollars } from "@/lib/money";
-
-export type CategoryOption = {
-  id: string;
-  name: string;
-};
+import { BUDGET_CATEGORIES, type BudgetCategory } from "@/lib/budget-categories";
 
 export type ExpenseFormValues = {
   amountCents: number;
   expenseDate: string;
   merchant: string;
   description: string;
-  categoryId: string;
+  category: BudgetCategory;
 };
 
 type ExpenseFormProps = {
-  categories: CategoryOption[];
   initial?: Partial<Omit<ExpenseFormValues, "description">> & {
     description?: string | null;
   };
@@ -33,7 +28,6 @@ type ExpenseFormProps = {
 };
 
 export function ExpenseForm({
-  categories,
   initial,
   pendingReceiptId,
   submitLabel = "Save expense",
@@ -48,16 +42,16 @@ export function ExpenseForm({
   );
   const [merchant, setMerchant] = useState(initial?.merchant ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [categoryId, setCategoryId] = useState(
-    initial?.categoryId ?? categories[0]?.id ?? "",
+  const [category, setCategory] = useState<BudgetCategory>(
+    initial?.category ?? BUDGET_CATEGORIES[0],
   );
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (initial?.categoryId) setCategoryId(initial.categoryId);
-  }, [initial?.categoryId]);
+    if (initial?.category) setCategory(initial.category);
+  }, [initial?.category]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -91,7 +85,7 @@ export function ExpenseForm({
         expenseDate,
         merchant: merchant.trim(),
         description: description.trim(),
-        categoryId,
+        category,
         pendingReceiptId,
       });
     } catch (err) {
@@ -155,17 +149,17 @@ export function ExpenseForm({
       </div>
 
       <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
-        <label htmlFor="categoryId">Category</label>
+        <label htmlFor="category">Category</label>
         <select
-          id="categoryId"
+          id="category"
           className="input"
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
+          value={category}
+          onChange={(e) => setCategory(e.target.value as BudgetCategory)}
           required
         >
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
+          {BUDGET_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </select>

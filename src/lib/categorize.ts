@@ -1,4 +1,9 @@
-import type { Category } from "@/lib/db/schema";
+import {
+  BUDGET_CATEGORIES,
+  DEFAULT_BUDGET_CATEGORY,
+  CATEGORY_KEYWORDS,
+  type BudgetCategory,
+} from "@/lib/budget-categories";
 
 export type CategorizeInput = {
   merchantNormalized: string;
@@ -7,52 +12,37 @@ export type CategorizeInput = {
 };
 
 export type CategorizeResult = {
-  categoryId: string;
+  category: BudgetCategory;
   categoryWasAuto: boolean;
 };
 
 export function categorizeExpense(
   input: CategorizeInput,
-  categories: Category[],
-  corrections: Map<string, string>,
+  corrections: Map<string, BudgetCategory>,
 ): CategorizeResult {
   const correction = corrections.get(input.merchantNormalized);
   if (correction) {
-    return { categoryId: correction, categoryWasAuto: true };
+    return { category: correction, categoryWasAuto: true };
   }
 
   const haystack =
     `${input.merchantNormalized} ${input.description ?? ""}`.toLowerCase();
 
-  for (const category of categories) {
-    if (category.isSystem) continue;
-    for (const keyword of category.keywords) {
+  for (const category of BUDGET_CATEGORIES) {
+    for (const keyword of CATEGORY_KEYWORDS[category]) {
       if (keyword && haystack.includes(keyword.toLowerCase())) {
-        return { categoryId: category.id, categoryWasAuto: true };
+        return { category, categoryWasAuto: true };
       }
     }
   }
 
   if (input.categoryHint) {
     const hint = input.categoryHint.toLowerCase();
-    const matched = categories.find((c) => c.name.toLowerCase() === hint);
+    const matched = BUDGET_CATEGORIES.find((c) => c.toLowerCase() === hint);
     if (matched) {
-      return { categoryId: matched.id, categoryWasAuto: true };
+      return { category: matched, categoryWasAuto: true };
     }
   }
 
-  const uncategorized = categories.find((c) => c.isSystem);
-  if (!uncategorized) {
-    throw new Error("Uncategorized category is missing");
-  }
-
-  return { categoryId: uncategorized.id, categoryWasAuto: true };
-}
-
-export function getUncategorizedId(categories: Category[]): string {
-  const uncategorized = categories.find((c) => c.isSystem);
-  if (!uncategorized) {
-    throw new Error("Uncategorized category is missing");
-  }
-  return uncategorized.id;
+  return { category: DEFAULT_BUDGET_CATEGORY, categoryWasAuto: true };
 }

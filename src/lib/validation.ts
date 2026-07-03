@@ -1,6 +1,9 @@
 import { z } from "zod";
+import { BUDGET_CATEGORIES } from "@/lib/budget-categories";
 
 const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+export const budgetCategorySchema = z.enum(BUDGET_CATEGORIES);
 
 export const expenseCreateSchema = z.object({
   amountCents: z
@@ -19,7 +22,7 @@ export const expenseCreateSchema = z.object({
     .min(1, "Merchant is required")
     .max(200, "Merchant must be 200 characters or fewer"),
   description: z.string().max(500).nullable().optional(),
-  categoryId: z.string().uuid().optional(),
+  category: budgetCategorySchema.optional(),
   pendingReceiptId: z.string().uuid().optional(),
   overrideDuplicate: z.boolean().optional(),
 });
@@ -35,22 +38,8 @@ export const expenseUpdateSchema = z.object({
     .optional(),
   merchant: z.string().trim().min(1).max(200).optional(),
   description: z.string().max(500).nullable().optional(),
-  categoryId: z.string().uuid().optional(),
+  category: budgetCategorySchema.optional(),
   overrideDuplicate: z.boolean().optional(),
-});
-
-export const categoryInputSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Category name is required")
-    .max(100, "Category name must be 100 characters or fewer"),
-  keywords: z.array(z.string().trim().min(1)).optional(),
-});
-
-export const categoryUpdateSchema = z.object({
-  name: z.string().trim().min(1).max(100).optional(),
-  keywords: z.array(z.string().trim().min(1)).optional(),
 });
 
 export const harnessParsedResultSchema = z.object({

@@ -6,7 +6,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { expenseCreateSchema } from "@/lib/validation";
+import { expenseCreateSchema, expenseUpdateSchema } from "@/lib/validation";
 import { normalizeMerchant } from "@/lib/normalize";
 import { confirmExpense } from "@/lib/expenses";
 import type { User } from "@/lib/db/schema";
@@ -32,6 +32,21 @@ describe("expense validation", () => {
       merchant: "Test",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts budget category on create", () => {
+    const result = expenseCreateSchema.safeParse({
+      amountCents: 100,
+      expenseDate: "2026-01-01",
+      merchant: "Test",
+      category: "Savings",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts budget category on update", () => {
+    const result = expenseUpdateSchema.safeParse({ category: "Needs" });
+    expect(result.success).toBe(true);
   });
 });
 

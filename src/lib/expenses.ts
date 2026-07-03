@@ -1,36 +1,29 @@
 import { and, eq, gte, lte, sql, desc, count, sum } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import {
-  expenses,
-  categories,
-  merchantCorrections,
-  pendingReceipts,
-} from "@/lib/db/schema";
+import { expenses, merchantCorrections, pendingReceipts } from "@/lib/db/schema";
 import type { Expense, User } from "@/lib/db/schema";
+import type { BudgetCategory } from "@/lib/budget-categories";
+import { BUDGET_CATEGORIES } from "@/lib/budget-categories";
 import { normalizeMerchant } from "@/lib/normalize";
 import { canConvertToManual, type ReceiptStatus } from "@/lib/receipt-state";
 import { expenseCreateSchema, expenseUpdateSchema } from "@/lib/validation";
-import { categorizeExpense, getUncategorizedId } from "@/lib/categorize";
+import { categorizeExpense } from "@/lib/categorize";
 import { deleteBlob } from "@/lib/blob";
 import { z } from "zod";
 
 export type ListExpensesFilters = {
   from?: string;
   to?: string;
-  categoryId?: string;
+  category?: BudgetCategory;
   status?: "draft" | "confirmed";
   page?: number;
   pageSize?: number;
 };
 
-async function loadCategorizationContext() {
+async function loadCorrections() {
   const db = getDb();
-  const allCategories = await db.select().from(categories);
   const correctionsRows = await db.select().from(merchantCorrections);
-  const corrections = new Map(
-    correctionsRows.map((r) => [r.merchantNormalized, r.categoryId]),
-  );
-  return { allCategories, corrections };
+  return new Map(correctionsRows.map((r) => [r.merchantNormalized, r.category]));
 }
 
 export async function findDuplicate(
@@ -62,24 +55,20 @@ export async function findDuplicate(
 
 export async function upsertMerchantCorrection(
   merchantNormalized: string,
-  categoryId: string,
+  category: BudgetCategory,
 ): Promise<void> {
   const db = getDb();
   await db
     .insert(merchantCorrections)
-    .values({ merchantNormalized, categoryId })
+    .values({ merchantNormalized, category })
     .onConflictDoUpdate({
       target: merchantCorrections.merchantNormalized,
-      set: { categoryId, updatedAt: new Date() },
+      set: { category, updatedAt: new Date() },
     });
 }
 
-export async function listExpenses(filters: ListExpensesFilters = {}) {
-  const db = getDb();
-  const page = filters.page ?? 1;
-  const pageSize = filters.pageSize ?? 50;
+function buildListConditions(filters: ListExpensesFilters) {
   const status = filters.status ?? "confirmed";
-
   const conditions = [eq(expenses.status, status)];
 
   if (filters.from) {
@@ -88,11 +77,18 @@ export async function listExpenses(filters: ListExpensesFilters = {}) {
   if (filters.to) {
     conditions.push(lte(expenses.expenseDate, filters.to));
   }
-  if (filters.categoryId) {
-    conditions.push(eq(expenses.categoryId, filters.categoryId));
+  if (filters.category) {
+    conditions.push(eq(expenses.category, filters.category));
   }
 
-  const where = and(...conditions);
+  return and(...conditions);
+}
+
+export async function listExpenses(filters: ListExpensesFilters = {}) {
+  const db = getDb();
+  const page = filters.page ?? 1;
+  const pageSize = filters.pageSize ?? 50;
+  const where = buildListConditions(filters);
 
   const [items, [{ total }], [{ sumCents }]] = await Promise.all([
     db
@@ -116,6 +112,35 @@ export async function listExpenses(filters: ListExpensesFilters = {}) {
   };
 }
 
+export async function getCategoryTotals(filters: ListExpensesFilters = {}) {
+  const db = getDb();
+  const where = buildListConditions(filters);
+
+  const rows = await db
+    .select({
+      category: expenses.category,
+      sumCents: sum(expenses.amountCents),
+    })
+    .from(expenses)
+    .where(where)
+    .groupBy(expenses.category);
+
+  const totals: Record<BudgetCategory, number> = {
+    Needs: 0,
+    Wants: 0,
+    Savings: 0,
+  };
+
+  for (const row of rows) {
+    totals[row.category] = Number(row.sumCents ?? 0);
+  }
+
+  return BUDGET_CATEGORIES.map((category) => ({
+    category,
+    sumCents: totals[category],
+  }));
+}
+
 export type CreateExpenseInput = z.infer<typeof expenseCreateSchema> & {
   source?: "manual" | "photo";
   status?: "draft" | "confirmed";
@@ -127,18 +152,17 @@ export async function createExpense(user: User, input: CreateExpenseInput) {
   const parsed = expenseCreateSchema.parse(input);
   const db = getDb();
   const merchantNormalized = normalizeMerchant(parsed.merchant);
-  const { allCategories, corrections } = await loadCategorizationContext();
+  const corrections = await loadCorrections();
 
-  let categoryId = parsed.categoryId;
+  let category = parsed.category;
   let categoryWasAuto = input.categoryWasAuto ?? false;
 
-  if (!categoryId) {
+  if (!category) {
     const result = categorizeExpense(
       { merchantNormalized, description: parsed.description },
-      allCategories,
       corrections,
     );
-    categoryId = result.categoryId;
+    category = result.category;
     categoryWasAuto = result.categoryWasAuto;
   }
 
@@ -172,7 +196,7 @@ export async function createExpense(user: User, input: CreateExpenseInput) {
         merchant: parsed.merchant,
         merchantNormalized,
         description: parsed.description ?? null,
-        categoryId,
+        category,
         status: "confirmed",
         source: "manual",
         receiptBlobKey: receipt.blobKey,
@@ -194,7 +218,7 @@ export async function createExpense(user: User, input: CreateExpenseInput) {
       merchant: parsed.merchant,
       merchantNormalized,
       description: parsed.description ?? null,
-      categoryId,
+      category,
       status: input.status ?? "confirmed",
       source: input.source ?? "manual",
       receiptBlobKey: input.receiptBlobKey ?? null,
@@ -238,11 +262,11 @@ export async function updateExpense(
     updates.merchantNormalized = merchantNormalized;
   }
   if (parsed.description !== undefined) updates.description = parsed.description;
-  if (parsed.categoryId !== undefined) {
-    updates.categoryId = parsed.categoryId;
+  if (parsed.category !== undefined) {
+    updates.category = parsed.category;
     updates.categoryWasAuto = false;
     if (options?.learnCategory !== false) {
-      await upsertMerchantCorrection(merchantNormalized, parsed.categoryId);
+      await upsertMerchantCorrection(merchantNormalized, parsed.category);
     }
   }
 
@@ -303,7 +327,7 @@ export async function confirmExpense(
     expenseDate: parsed.expenseDate ?? existing.expenseDate,
     merchant: parsed.merchant ?? existing.merchant,
     description: parsed.description ?? existing.description,
-    categoryId: parsed.categoryId ?? existing.categoryId,
+    category: parsed.category ?? existing.category,
     overrideDuplicate: parsed.overrideDuplicate,
   };
 
@@ -327,14 +351,14 @@ export async function confirmExpense(
     merchant: merged.merchant,
     merchantNormalized,
     description: merged.description,
-    categoryId: merged.categoryId,
+    category: merged.category,
     status: "confirmed",
     updatedAt: new Date(),
   };
 
-  if (parsed.categoryId && parsed.categoryId !== existing.categoryId) {
+  if (parsed.category && parsed.category !== existing.category) {
     updates.categoryWasAuto = false;
-    await upsertMerchantCorrection(merchantNormalized, parsed.categoryId);
+    await upsertMerchantCorrection(merchantNormalized, parsed.category);
   }
 
   const [confirmed] = await db
@@ -369,11 +393,10 @@ export async function createDraftFromHarness(
 ) {
   const db = getDb();
   const merchantNormalized = normalizeMerchant(data.merchant);
-  const { allCategories, corrections } = await loadCategorizationContext();
+  const corrections = await loadCorrections();
 
-  const { categoryId, categoryWasAuto } = categorizeExpense(
+  const { category, categoryWasAuto } = categorizeExpense(
     { merchantNormalized, categoryHint: data.categoryHint },
-    allCategories,
     corrections,
   );
 
@@ -385,7 +408,7 @@ export async function createDraftFromHarness(
       merchant: data.merchant,
       merchantNormalized,
       description: null,
-      categoryId,
+      category,
       status: "draft",
       source: "photo",
       receiptBlobKey: blobKey,
@@ -415,5 +438,3 @@ export async function getExpenseById(id: string) {
     .limit(1);
   return expense ?? null;
 }
-
-export { getUncategorizedId };

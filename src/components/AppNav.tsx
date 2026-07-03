@@ -7,13 +7,11 @@ const TABS = [
   { href: "/expenses", label: "Expenses" },
   { href: "/receipts", label: "Capture", primary: true },
   { href: "/receipts", label: "Receipts", match: "/receipts" },
-  { href: "/categories", label: "Categories" },
 ] as const;
 
 const DESKTOP_LINKS = [
   { href: "/expenses", label: "Expenses" },
   { href: "/receipts", label: "Receipts" },
-  { href: "/categories", label: "Categories" },
 ] as const;
 
 function isActive(pathname: string, href: string, label: string) {

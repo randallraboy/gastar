@@ -1,21 +1,34 @@
 import { describe, expect, it } from "vitest";
+import { BUDGET_CATEGORIES } from "@/lib/budget-categories";
+import { budgetCategorySchema, expenseCreateSchema } from "@/lib/validation";
 
-describe("category rules", () => {
-  it("blocks system category modification", () => {
-    const isSystem = true;
-    expect(() => {
-      if (isSystem) throw new Error("System categories cannot be deleted");
-    }).toThrow("System categories cannot be deleted");
+describe("budget categories", () => {
+  it("defines exactly three categories", () => {
+    expect(BUDGET_CATEGORIES).toEqual(["Needs", "Wants", "Savings"]);
   });
 
-  it("reassigns to uncategorized on delete", () => {
-    const expenses = [{ categoryId: "cat-a" }, { categoryId: "cat-b" }];
-    const uncategorizedId = "uncat";
-    const deletedId = "cat-a";
-    const updated = expenses.map((e) =>
-      e.categoryId === deletedId ? { ...e, categoryId: uncategorizedId } : e,
-    );
-    expect(updated[0].categoryId).toBe("uncat");
-    expect(updated[1].categoryId).toBe("cat-b");
+  it("rejects invalid category values", () => {
+    const result = budgetCategorySchema.safeParse("Housing");
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts valid budget categories in expense create schema", () => {
+    const result = expenseCreateSchema.safeParse({
+      amountCents: 1000,
+      expenseDate: "2026-01-01",
+      merchant: "Test",
+      category: "Wants",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid categories in expense create schema", () => {
+    const result = expenseCreateSchema.safeParse({
+      amountCents: 1000,
+      expenseDate: "2026-01-01",
+      merchant: "Test",
+      category: "Groceries",
+    });
+    expect(result.success).toBe(false);
   });
 });

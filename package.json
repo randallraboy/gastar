@@ -11,6 +11,7 @@
     "test:watch": "vitest --config vitest.config.mts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:migrate-budget-categories-data": "tsx scripts/migrate-budget-categories-data.ts",
     "seed": "tsx scripts/seed.ts",
     "harness": "tsx harness/cli.ts"
   },

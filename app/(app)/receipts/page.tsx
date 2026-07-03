@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ExpenseForm, type CategoryOption } from "@/components/ExpenseForm";
+import { ExpenseForm } from "@/components/ExpenseForm";
 import { ReceiptCapture } from "@/components/ReceiptCapture";
 
 type Receipt = {
@@ -14,18 +14,15 @@ type Receipt = {
 export default function ReceiptsPage() {
   const [pending, setPending] = useState<Receipt[]>([]);
   const [unreadable, setUnreadable] = useState<Receipt[]>([]);
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [converting, setConverting] = useState<Receipt | null>(null);
 
   const load = useCallback(async () => {
-    const [pendingRes, unreadableRes, catRes] = await Promise.all([
+    const [pendingRes, unreadableRes] = await Promise.all([
       fetch("/api/receipts?status=pending"),
       fetch("/api/receipts?status=unreadable"),
-      fetch("/api/categories"),
     ]);
     setPending(await pendingRes.json());
     setUnreadable(await unreadableRes.json());
-    setCategories(await catRes.json());
   }, []);
 
   useEffect(() => {
@@ -100,7 +97,6 @@ export default function ReceiptsPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={converting.imageUrl} alt="Receipt" className="capture-preview" />
             <ExpenseForm
-              categories={categories}
               pendingReceiptId={converting.id}
               submitLabel="Save expense"
               onCancel={() => setConverting(null)}

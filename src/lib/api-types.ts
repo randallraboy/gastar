@@ -1,4 +1,5 @@
-import type { Expense, Category } from "@/lib/db/schema";
+import type { Expense } from "@/lib/db/schema";
+import type { BudgetCategory } from "@/lib/budget-categories";
 
 export type ExpenseDto = {
   id: string;
@@ -7,7 +8,7 @@ export type ExpenseDto = {
   expenseDate: string;
   merchant: string;
   description: string | null;
-  categoryId: string;
+  category: BudgetCategory;
   categoryWasAuto: boolean;
   status: "draft" | "confirmed";
   source: "manual" | "photo";
@@ -15,13 +16,6 @@ export type ExpenseDto = {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-};
-
-export type CategoryDto = {
-  id: string;
-  name: string;
-  isSystem: boolean;
-  keywords: string[];
 };
 
 export type PendingReceiptDto = {
@@ -42,7 +36,7 @@ export function toExpenseDto(expense: Expense): ExpenseDto {
     expenseDate: expense.expenseDate,
     merchant: expense.merchant,
     description: expense.description,
-    categoryId: expense.categoryId,
+    category: expense.category,
     categoryWasAuto: expense.categoryWasAuto,
     status: expense.status as "draft" | "confirmed",
     source: expense.source as "manual" | "photo",
@@ -52,15 +46,6 @@ export function toExpenseDto(expense: Expense): ExpenseDto {
     createdBy: expense.createdBy,
     createdAt: expense.createdAt.toISOString(),
     updatedAt: expense.updatedAt.toISOString(),
-  };
-}
-
-export function toCategoryDto(category: Category): CategoryDto {
-  return {
-    id: category.id,
-    name: category.name,
-    isSystem: category.isSystem,
-    keywords: category.keywords,
   };
 }
 
