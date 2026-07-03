@@ -74,27 +74,34 @@ async function push(resultsPath: string) {
   }
 }
 
-const [command, arg] = process.argv.slice(2);
+async function main() {
+  const [command, arg] = process.argv.slice(2);
 
-switch (command) {
-  case "list":
-    await listPending();
-    break;
-  case "pull":
-    if (!arg) {
-      console.error("Usage: harness pull <dir>");
+  switch (command) {
+    case "list":
+      await listPending();
+      break;
+    case "pull":
+      if (!arg) {
+        console.error("Usage: harness pull <dir>");
+        process.exit(1);
+      }
+      await pull(arg);
+      break;
+    case "push":
+      if (!arg) {
+        console.error("Usage: harness push <results.json>");
+        process.exit(1);
+      }
+      await push(arg);
+      break;
+    default:
+      console.error("Usage: harness <list|pull|push> [arg]");
       process.exit(1);
-    }
-    await pull(arg);
-    break;
-  case "push":
-    if (!arg) {
-      console.error("Usage: harness push <results.json>");
-      process.exit(1);
-    }
-    await push(arg);
-    break;
-  default:
-    console.error("Usage: harness <list|pull|push> [arg]");
-    process.exit(1);
+  }
 }
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
