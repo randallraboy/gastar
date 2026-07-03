@@ -88,3 +88,11 @@
 
 - Updating API routes (T005, T006) and Dashboard fetching logic (T009, T010) can run in parallel.
 - User Story 1 and User Story 2 can be worked on in parallel by different team members after Foundation is complete.
+
+---
+
+## Phase 5: Convergence
+
+**Purpose**: Close gaps found by `/speckit-converge` on 2026-07-02
+
+- [X] T017 CRITICAL: Restore the `npm run lint` quality gate to passing — `prettier --check .` fails on 10 unformatted `.agents/skills/speckit-*/SKILL.md` files; format them with Prettier or exclude `.agents/` via `.prettierignore` per Constitution III (contradicts)
