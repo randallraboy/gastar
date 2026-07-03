@@ -8,6 +8,13 @@
       "when": 1751328000000,
       "tag": "0000_initial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783039051347,
+      "tag": "0001_superb_cable",
+      "breakpoints": true
     }
   ]
 }

@@ -96,12 +96,14 @@ export const pendingReceipts = pgTable(
       .references(() => users.id),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    clientKey: uuid("client_key"),
   },
   (table) => [
     check(
       "pending_receipts_status_check",
       sql`${table.status} IN ('pending', 'processed', 'unreadable', 'converted')`,
     ),
+    uniqueIndex("pending_receipts_client_key_idx").on(table.clientKey),
   ],
 );
 

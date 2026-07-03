@@ -21,6 +21,10 @@ type ListResponse = {
   sumCents: number;
 };
 
+function categoryName(categories: CategoryOption[], id: string) {
+  return categories.find((c) => c.id === id)?.name ?? "—";
+}
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [drafts, setDrafts] = useState<Expense[]>([]);
@@ -156,13 +160,7 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+      <div className="page-header">
         <h1>Expenses</h1>
         <button
           className="btn btn-primary"
@@ -176,17 +174,22 @@ export default function ExpensesPage() {
       </div>
 
       {drafts.length > 0 && (
-        <section style={{ marginBottom: "2rem" }}>
+        <section style={{ marginBottom: "var(--space-6)" }}>
           <h2>Drafts from receipts</h2>
           {drafts.map((draft) => (
-            <div key={draft.id} className="card" style={{ marginBottom: "1rem" }}>
-              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+            <div
+              key={draft.id}
+              className="card"
+              style={{ marginBottom: "var(--space-4)" }}
+            >
+              <div style={{ display: "flex", gap: "var(--space-4)", flexWrap: "wrap" }}>
                 {draft.receiptImageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={draft.receiptImageUrl}
                     alt="Receipt"
-                    style={{ maxWidth: 200, maxHeight: 200, objectFit: "contain" }}
+                    className="capture-preview"
+                    style={{ maxWidth: 200, maxHeight: 200 }}
                   />
                 )}
                 <div style={{ flex: 1, minWidth: 240 }}>
@@ -194,19 +197,20 @@ export default function ExpensesPage() {
                     <strong>{draft.merchant}</strong> — {formatCad(draft.amountCents)}{" "}
                     on {draft.expenseDate}
                   </p>
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => setConfirmingDraft(draft)}
-                  >
-                    Review & confirm
-                  </button>
-                  <button
-                    className="btn btn-danger"
-                    style={{ marginLeft: "0.5rem" }}
-                    onClick={() => deleteExpense(draft.id)}
-                  >
-                    Discard
-                  </button>
+                  <div className="expense-card-actions">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => setConfirmingDraft(draft)}
+                    >
+                      Review & confirm
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => deleteExpense(draft.id)}
+                    >
+                      Discard
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -253,7 +257,7 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      <p style={{ marginBottom: "1rem" }}>
+      <p className="filtered-total filtered-total-sticky">
         <strong>Filtered total:</strong> {formatCad(sumCents)}
       </p>
 
@@ -262,29 +266,95 @@ export default function ExpensesPage() {
       ) : expenses.length === 0 ? (
         <p className="empty">No expenses yet. Add your first one!</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Merchant</th>
-              <th>Description</th>
-              <th>Category</th>
-              <th>Amount</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          <table className="expense-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Merchant</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenses.map((expense) => (
+                <tr key={expense.id}>
+                  <td>{expense.expenseDate}</td>
+                  <td>{expense.merchant}</td>
+                  <td>{expense.description ?? "—"}</td>
+                  <td>
+                    <select
+                      className="input"
+                      value={expense.categoryId}
+                      onChange={(e) => quickCategoryChange(expense, e.target.value)}
+                      style={{ width: "auto" }}
+                    >
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    {expense.categoryWasAuto && <span className="badge">auto</span>}
+                  </td>
+                  <td>{formatCad(expense.amountCents)}</td>
+                  <td>
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        setEditing(expense);
+                        setShowForm(true);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      style={{ marginLeft: "var(--space-1)" }}
+                      onClick={() => deleteExpense(expense.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="card-list">
             {expenses.map((expense) => (
-              <tr key={expense.id}>
-                <td>{expense.expenseDate}</td>
-                <td>{expense.merchant}</td>
-                <td>{expense.description ?? "—"}</td>
-                <td>
+              <div key={expense.id} className="card expense-card">
+                <div className="expense-card-amount">
+                  {formatCad(expense.amountCents)}
+                </div>
+                <div>
+                  <strong>{expense.merchant}</strong>
+                </div>
+                <div className="expense-card-meta">
+                  {expense.expenseDate}
+                  {expense.receiptImageUrl ? " · receipt" : ""}
+                </div>
+                <div>
+                  <span className="badge">
+                    {categoryName(categories, expense.categoryId)}
+                  </span>
+                  {expense.categoryWasAuto && (
+                    <span className="badge" style={{ marginLeft: "var(--space-2)" }}>
+                      auto
+                    </span>
+                  )}
+                </div>
+                {expense.description && (
+                  <p className="expense-card-meta">{expense.description}</p>
+                )}
+                <div className="expense-card-actions">
                   <select
                     className="input"
                     value={expense.categoryId}
                     onChange={(e) => quickCategoryChange(expense, e.target.value)}
-                    style={{ width: "auto" }}
+                    aria-label={`Category for ${expense.merchant}`}
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -292,10 +362,6 @@ export default function ExpensesPage() {
                       </option>
                     ))}
                   </select>
-                  {expense.categoryWasAuto && <span className="badge">auto</span>}
-                </td>
-                <td>{formatCad(expense.amountCents)}</td>
-                <td>
                   <button
                     className="btn"
                     onClick={() => {
@@ -307,16 +373,15 @@ export default function ExpensesPage() {
                   </button>
                   <button
                     className="btn btn-danger"
-                    style={{ marginLeft: "0.25rem" }}
                     onClick={() => deleteExpense(expense.id)}
                   >
                     Delete
                   </button>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </>
       )}
 
       {(showForm || editing) && (
@@ -347,7 +412,7 @@ export default function ExpensesPage() {
               <img
                 src={confirmingDraft.receiptImageUrl}
                 alt="Receipt"
-                style={{ maxWidth: "100%", marginBottom: "1rem" }}
+                className="capture-preview"
               />
             )}
             <ExpenseForm
@@ -370,7 +435,7 @@ export default function ExpensesPage() {
               {duplicateWarning.merchant}, {formatCad(duplicateWarning.amountCents)} on{" "}
               {duplicateWarning.expenseDate}).
             </p>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div className="expense-card-actions">
               <button
                 className="btn btn-primary"
                 onClick={() => {

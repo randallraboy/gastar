@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppNav } from "@/components/AppNav";
 import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -9,28 +9,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <>
-      <nav className="nav">
-        <Link href="/expenses">Expenses</Link>
-        <Link href="/receipts">Receipts</Link>
-        <Link href="/categories">Categories</Link>
-        <span
-          style={{ marginLeft: "auto", color: "var(--muted)", fontSize: "0.875rem" }}
-        >
-          {session.user.email}
-        </span>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/" });
-          }}
-        >
-          <button type="submit" className="btn">
-            Sign out
-          </button>
-        </form>
-      </nav>
-      <div className="container">{children}</div>
-    </>
+    <div className="app-shell">
+      <header className="app-header">
+        <AppNav />
+        <div className="app-header-account">
+          <span className="app-header-email">{session.user.email}</span>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/" });
+            }}
+          >
+            <button type="submit" className="btn btn-compact">
+              Sign out
+            </button>
+          </form>
+        </div>
+      </header>
+      <main className="container app-content">{children}</main>
+    </div>
   );
 }

@@ -1,12 +1,16 @@
+import { z } from "zod";
 import { requireUser, requireHarness, handleApiError } from "@/lib/authz";
 import { createPendingReceipt, listReceiptsByStatus } from "@/lib/receipts";
 import { toPendingReceiptDto } from "@/lib/api-types";
+
+const clientKeySchema = z.string().uuid();
 
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
     const formData = await request.formData();
     const file = formData.get("file");
+    const clientKeyRaw = formData.get("clientKey");
 
     if (!(file instanceof File)) {
       return Response.json(
@@ -20,9 +24,39 @@ export async function POST(request: Request) {
       );
     }
 
+    let clientKey: string | undefined;
+    if (clientKeyRaw != null && clientKeyRaw !== "") {
+      if (typeof clientKeyRaw !== "string") {
+        return Response.json(
+          {
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "clientKey must be a valid UUID",
+            },
+          },
+          { status: 400 },
+        );
+      }
+      const parsed = clientKeySchema.safeParse(clientKeyRaw);
+      if (!parsed.success) {
+        return Response.json(
+          {
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "clientKey must be a valid UUID",
+            },
+          },
+          { status: 400 },
+        );
+      }
+      clientKey = parsed.data;
+    }
+
     try {
-      const receipt = await createPendingReceipt(user, file);
-      return Response.json(toPendingReceiptDto(receipt), { status: 201 });
+      const { receipt, created } = await createPendingReceipt(user, file, clientKey);
+      return Response.json(toPendingReceiptDto(receipt), {
+        status: created ? 201 : 200,
+      });
     } catch (err) {
       if (err instanceof Error) {
         return Response.json(

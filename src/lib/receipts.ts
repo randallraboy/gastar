@@ -6,10 +6,38 @@ import { uploadStagingBlob, deleteBlob } from "@/lib/blob";
 import { validateUploadFile } from "@/lib/validation";
 import { canDiscardReceipt, type ReceiptStatus } from "@/lib/receipt-state";
 
+export type CreatePendingReceiptResult = {
+  receipt: PendingReceipt;
+  created: boolean;
+};
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err.message.includes("unique") ||
+      err.message.includes("duplicate key") ||
+      (err as { code?: string }).code === "23505")
+  );
+}
+
 export async function createPendingReceipt(
   user: User,
   file: File,
-): Promise<PendingReceipt> {
+  clientKey?: string,
+): Promise<CreatePendingReceiptResult> {
+  const db = getDb();
+
+  if (clientKey) {
+    const [existing] = await db
+      .select()
+      .from(pendingReceipts)
+      .where(eq(pendingReceipts.clientKey, clientKey))
+      .limit(1);
+    if (existing) {
+      return { receipt: existing, created: false };
+    }
+  }
+
   const validationError = validateUploadFile(file);
   if (validationError) {
     throw new Error(validationError);
@@ -23,16 +51,35 @@ export async function createPendingReceipt(
     file.type,
   );
 
-  const db = getDb();
-  const [receipt] = await db
-    .insert(pendingReceipts)
-    .values({
-      blobKey,
-      uploadedBy: user.id,
-    })
-    .returning();
+  try {
+    const [receipt] = await db
+      .insert(pendingReceipts)
+      .values({
+        blobKey,
+        uploadedBy: user.id,
+        clientKey: clientKey ?? null,
+      })
+      .returning();
 
-  return receipt;
+    return { receipt, created: true };
+  } catch (err) {
+    if (clientKey && isUniqueViolation(err)) {
+      const [existing] = await db
+        .select()
+        .from(pendingReceipts)
+        .where(eq(pendingReceipts.clientKey, clientKey))
+        .limit(1);
+      if (existing) {
+        try {
+          await deleteBlob(blobKey);
+        } catch {
+          // best effort — orphaned blob acceptable on race
+        }
+        return { receipt: existing, created: false };
+      }
+    }
+    throw err;
+  }
 }
 
 export async function listReceiptsByStatus(

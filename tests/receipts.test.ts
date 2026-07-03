@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({ getDb: vi.fn() }));
 vi.mock("@/lib/blob", () => ({
@@ -98,5 +98,151 @@ describe("upload validation", () => {
       type: "image/jpeg",
     });
     expect(validateUploadFile(file)).toContain("10 MB");
+  });
+});
+
+describe("createPendingReceipt idempotency", () => {
+  const user = {
+    id: "user-1",
+    googleSub: "sub",
+    email: "u@example.com",
+    displayName: "User",
+    createdAt: new Date(),
+  };
+
+  const clientKey = "550e8400-e29b-41d4-a716-446655440000";
+
+  const validFile = new File(["x"], "receipt.jpg", { type: "image/jpeg" });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function mockDbChain(opts: {
+    existingByKey?: Record<string, unknown> | null;
+    insertReturns?: Record<string, unknown>;
+    insertThrows?: Error;
+    raceExisting?: Record<string, unknown>;
+  }) {
+    const selectChain = {
+      from: () => selectChain,
+      where: () => selectChain,
+      limit: async () => (opts.existingByKey ? [opts.existingByKey] : []),
+    };
+
+    let selectCall = 0;
+    const db = {
+      select: () => {
+        selectCall += 1;
+        if (selectCall > 1 && opts.raceExisting) {
+          return {
+            from: () => ({
+              where: () => ({
+                limit: async () => [opts.raceExisting],
+              }),
+            }),
+          };
+        }
+        return selectChain;
+      },
+      insert: () => ({
+        values: () => ({
+          returning: async () => {
+            if (opts.insertThrows) throw opts.insertThrows;
+            return [opts.insertReturns];
+          },
+        }),
+      }),
+    };
+    vi.mocked(getDb).mockReturnValue(db as unknown as ReturnType<typeof getDb>);
+  }
+
+  it("stores clientKey on create", async () => {
+    const { uploadStagingBlob } = await import("@/lib/blob");
+    vi.mocked(uploadStagingBlob).mockResolvedValue("blob/key.jpg");
+
+    mockDbChain({
+      insertReturns: {
+        id: "r1",
+        blobKey: "blob/key.jpg",
+        clientKey,
+        status: "pending",
+        uploadedBy: user.id,
+        uploadedAt: new Date(),
+      },
+    });
+
+    const { createPendingReceipt } = await import("@/lib/receipts");
+    const { receipt, created } = await createPendingReceipt(user, validFile, clientKey);
+
+    expect(created).toBe(true);
+    expect(receipt.clientKey).toBe(clientKey);
+    expect(uploadStagingBlob).toHaveBeenCalled();
+  });
+
+  it("returns existing receipt on duplicate clientKey without re-upload", async () => {
+    const { uploadStagingBlob } = await import("@/lib/blob");
+    const existing = {
+      id: "r-existing",
+      blobKey: "blob/old.jpg",
+      clientKey,
+      status: "pending",
+      uploadedBy: user.id,
+      uploadedAt: new Date(),
+    };
+
+    mockDbChain({ existingByKey: existing });
+
+    const { createPendingReceipt } = await import("@/lib/receipts");
+    const { receipt, created } = await createPendingReceipt(user, validFile, clientKey);
+
+    expect(created).toBe(false);
+    expect(receipt.id).toBe("r-existing");
+    expect(uploadStagingBlob).not.toHaveBeenCalled();
+  });
+
+  it("always inserts when no clientKey is provided", async () => {
+    const { uploadStagingBlob } = await import("@/lib/blob");
+    vi.mocked(uploadStagingBlob).mockResolvedValue("blob/new.jpg");
+
+    mockDbChain({
+      insertReturns: {
+        id: "r2",
+        blobKey: "blob/new.jpg",
+        clientKey: null,
+        status: "pending",
+        uploadedBy: user.id,
+        uploadedAt: new Date(),
+      },
+    });
+
+    const { createPendingReceipt } = await import("@/lib/receipts");
+    const { created } = await createPendingReceipt(user, validFile);
+    expect(created).toBe(true);
+    expect(uploadStagingBlob).toHaveBeenCalled();
+  });
+
+  it("returns existing row on unique-index conflict race", async () => {
+    const { uploadStagingBlob, deleteBlob } = await import("@/lib/blob");
+    vi.mocked(uploadStagingBlob).mockResolvedValue("blob/race.jpg");
+
+    mockDbChain({
+      insertThrows: new Error("duplicate key value violates unique constraint"),
+      raceExisting: {
+        id: "r-race",
+        blobKey: "blob/race.jpg",
+        clientKey,
+        status: "pending",
+        uploadedBy: user.id,
+        uploadedAt: new Date(),
+      },
+    });
+
+    const { createPendingReceipt } = await import("@/lib/receipts");
+    const { receipt, created } = await createPendingReceipt(user, validFile, clientKey);
+
+    expect(created).toBe(false);
+    expect(receipt.id).toBe("r-race");
+    expect(deleteBlob).toHaveBeenCalledWith("blob/race.jpg");
   });
 });

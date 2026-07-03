@@ -103,11 +103,12 @@ export function ExpenseForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
+      <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
         <label htmlFor="amount">Amount (CAD)</label>
         <input
           id="amount"
           className="input"
+          inputMode="decimal"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="12.34"
@@ -116,7 +117,7 @@ export function ExpenseForm({
         {fieldErrors.amount && <span className="error">{fieldErrors.amount}</span>}
       </div>
 
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
+      <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
         <label htmlFor="expenseDate">Date</label>
         <input
           id="expenseDate"
@@ -131,7 +132,7 @@ export function ExpenseForm({
         )}
       </div>
 
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
+      <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
         <label htmlFor="merchant">Merchant</label>
         <input
           id="merchant"
@@ -143,7 +144,7 @@ export function ExpenseForm({
         {fieldErrors.merchant && <span className="error">{fieldErrors.merchant}</span>}
       </div>
 
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
+      <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
         <label htmlFor="description">Description (optional)</label>
         <input
           id="description"
@@ -153,7 +154,7 @@ export function ExpenseForm({
         />
       </div>
 
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
+      <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
         <label htmlFor="categoryId">Category</label>
         <select
           id="categoryId"
@@ -172,7 +173,9 @@ export function ExpenseForm({
 
       {error && <p className="error">{error}</p>}
 
-      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+      <div
+        style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-4)" }}
+      >
         <button type="submit" className="btn btn-primary" disabled={submitting}>
           {submitting ? "Saving…" : submitLabel}
         </button>

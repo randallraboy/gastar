@@ -88,9 +88,13 @@ export default function CategoriesPage() {
     <div>
       <h1>Categories</h1>
 
-      <form onSubmit={addCategory} className="card" style={{ marginBottom: "1.5rem" }}>
+      <form
+        onSubmit={addCategory}
+        className="card"
+        style={{ marginBottom: "var(--space-5)" }}
+      >
         <h2>Add category</h2>
-        <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+        <div className="form-group" style={{ marginBottom: "var(--space-3)" }}>
           <label htmlFor="name">Name</label>
           <input
             id="name"
@@ -100,7 +104,7 @@ export default function CategoriesPage() {
             required
           />
         </div>
-        <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+        <div className="form-group" style={{ marginBottom: "var(--space-3)" }}>
           <label htmlFor="keywords">Keywords (comma-separated)</label>
           <input
             id="keywords"
@@ -115,7 +119,7 @@ export default function CategoriesPage() {
         </button>
       </form>
 
-      <table>
+      <table className="category-table">
         <thead>
           <tr>
             <th>Name</th>
@@ -164,7 +168,7 @@ export default function CategoriesPage() {
                     </button>
                     <button
                       className="btn"
-                      style={{ marginLeft: "0.25rem" }}
+                      style={{ marginLeft: "var(--space-1)" }}
                       onClick={() => setEditingId(null)}
                     >
                       Cancel
@@ -184,7 +188,7 @@ export default function CategoriesPage() {
                     </button>
                     <button
                       className="btn btn-danger"
-                      style={{ marginLeft: "0.25rem" }}
+                      style={{ marginLeft: "var(--space-1)" }}
                       onClick={() => deleteCategory(cat)}
                     >
                       Delete
@@ -196,6 +200,79 @@ export default function CategoriesPage() {
           ))}
         </tbody>
       </table>
+
+      <div className="category-list">
+        {categories.map((cat) => (
+          <div key={cat.id} className="card">
+            {editingId === cat.id ? (
+              <>
+                <div className="form-group" style={{ marginBottom: "var(--space-3)" }}>
+                  <label htmlFor={`edit-name-${cat.id}`}>Name</label>
+                  <input
+                    id={`edit-name-${cat.id}`}
+                    className="input"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: "var(--space-3)" }}>
+                  <label htmlFor={`edit-kw-${cat.id}`}>Keywords</label>
+                  <input
+                    id={`edit-kw-${cat.id}`}
+                    className="input"
+                    value={editKeywords}
+                    onChange={(e) => setEditKeywords(e.target.value)}
+                  />
+                </div>
+                <div className="category-card-actions">
+                  <button className="btn btn-primary" onClick={() => saveEdit(cat.id)}>
+                    Save
+                  </button>
+                  <button className="btn" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <strong>{cat.name}</strong>
+                  {cat.isSystem && (
+                    <span className="badge" style={{ marginLeft: "var(--space-2)" }}>
+                      locked
+                    </span>
+                  )}
+                </div>
+                <p className="expense-card-meta">
+                  {cat.keywords.join(", ") || "No keywords"}
+                </p>
+                {cat.isSystem ? (
+                  <span style={{ color: "var(--muted)" }}>System category</span>
+                ) : (
+                  <div className="category-card-actions">
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        setEditingId(cat.id);
+                        setEditName(cat.name);
+                        setEditKeywords(cat.keywords.join(", "));
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => deleteCategory(cat)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
