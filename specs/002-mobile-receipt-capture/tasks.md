@@ -175,3 +175,13 @@ Task: "Create tests/upload.test.ts for uploadWithProgress"
 - Commit after each task or logical group (constitution: focused commits)
 - T009 and T006 both edit `receipts`/`expenses` pages' shared CSS — sequence within phases as listed to avoid churn
 - Camera capture untestable on plain-HTTP LAN — use Vercel preview or HTTPS tunnel for every phone checkpoint (quickstart.md prerequisite)
+
+---
+
+## Phase 7: Convergence
+
+- [X] T026 CRITICAL: Restore the `npm run lint` gate to green — exclude harness runtime output from formatting by adding `receipts-work/` to `.gitignore` and to a new `.prettierignore` (or prettier ignore config), then verify `npm run lint && npm run build && npm test` all pass per Constitution III (contradicts)
+- [X] T027 Reopen the camera directly when the user taps Retake in `src/components/ReceiptCapture.tsx` — remember which input (camera or fallback) produced the current photo and re-trigger that input after reset; extend `tests/receipt-capture.test.tsx` accordingly per US1/AC4 (partial)
+- [X] T028 Provide a way to view the attached receipt image for a confirmed expense in `app/(app)/expenses/page.tsx` (image in the edit sheet and/or a View-receipt action on the expense card and table row) using the existing `receiptImageUrl` and the `.capture-preview` orientation guard per FR-010 / edge case "correct orientation in the saved expense" (partial)
+- [X] T029 Reject too-large captures client-side with a plain-language message stating the limit in `src/components/ReceiptCapture.tsx` before upload, and reconcile the 10 MB app limit in `src/lib/validation.ts` with the deployed platform's request-body cap (Vercel serverless ~4.5 MB) so no in-limit photo fails with a generic error per edge case "very large photo — never a silent failure" and SC-004 (partial)
+- [X] T030 Review the uncommitted modifications to `harness/cli.ts` (not called for by any feature 002 artifact) — justify and commit them under the appropriate spec, or revert them per plan constraint "harness endpoints untouched" (unrequested). Reviewed: benign hardening — CLI switch wrapped in `main().catch` so failures exit nonzero with an error message; logic unchanged; kept and committed separately

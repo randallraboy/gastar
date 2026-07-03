@@ -36,6 +36,7 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [confirmingDraft, setConfirmingDraft] = useState<Expense | null>(null);
+  const [viewingReceipt, setViewingReceipt] = useState<Expense | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<Expense | null>(null);
   const [pendingSubmit, setPendingSubmit] = useState<Record<string, unknown> | null>(
     null,
@@ -301,6 +302,15 @@ export default function ExpensesPage() {
                   </td>
                   <td>{formatCad(expense.amountCents)}</td>
                   <td>
+                    {expense.receiptImageUrl && (
+                      <button
+                        className="btn"
+                        style={{ marginRight: "var(--space-1)" }}
+                        onClick={() => setViewingReceipt(expense)}
+                      >
+                        Receipt
+                      </button>
+                    )}
                     <button
                       className="btn"
                       onClick={() => {
@@ -332,10 +342,7 @@ export default function ExpensesPage() {
                 <div>
                   <strong>{expense.merchant}</strong>
                 </div>
-                <div className="expense-card-meta">
-                  {expense.expenseDate}
-                  {expense.receiptImageUrl ? " · receipt" : ""}
-                </div>
+                <div className="expense-card-meta">{expense.expenseDate}</div>
                 <div>
                   <span className="badge">
                     {categoryName(categories, expense.categoryId)}
@@ -362,6 +369,11 @@ export default function ExpensesPage() {
                       </option>
                     ))}
                   </select>
+                  {expense.receiptImageUrl && (
+                    <button className="btn" onClick={() => setViewingReceipt(expense)}>
+                      Receipt
+                    </button>
+                  )}
                   <button
                     className="btn"
                     onClick={() => {
@@ -388,6 +400,14 @@ export default function ExpensesPage() {
         <div className="modal-backdrop">
           <div className="modal">
             <h2>{editing ? "Edit expense" : "New expense"}</h2>
+            {editing?.receiptImageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={editing.receiptImageUrl}
+                alt="Receipt"
+                className="capture-preview"
+              />
+            )}
             <ExpenseForm
               categories={categories}
               initial={editing ?? undefined}
@@ -422,6 +442,23 @@ export default function ExpensesPage() {
               onCancel={() => setConfirmingDraft(null)}
               onSubmit={(values) => saveExpense(values, "confirm", confirmingDraft.id)}
             />
+          </div>
+        </div>
+      )}
+
+      {viewingReceipt?.receiptImageUrl && (
+        <div className="modal-backdrop" onClick={() => setViewingReceipt(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Receipt — {viewingReceipt.merchant}</h2>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={viewingReceipt.receiptImageUrl}
+              alt={`Receipt for ${viewingReceipt.merchant}`}
+              className="capture-preview"
+            />
+            <button className="btn btn-block" onClick={() => setViewingReceipt(null)}>
+              Close
+            </button>
           </div>
         </div>
       )}

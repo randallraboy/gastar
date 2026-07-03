@@ -15,7 +15,11 @@ import {
   canDiscardReceipt,
   isTerminalReceiptStatus,
 } from "@/lib/receipt-state";
-import { validateUploadFile, MAX_UPLOAD_BYTES } from "@/lib/validation";
+import {
+  validateUploadFile,
+  MAX_UPLOAD_BYTES,
+  UPLOAD_LIMIT_MB,
+} from "@/lib/validation";
 import { deleteReceipt } from "@/lib/receipts";
 import { getDb } from "@/lib/db";
 import { deleteBlob } from "@/lib/blob";
@@ -97,7 +101,7 @@ describe("upload validation", () => {
     const file = new File([new ArrayBuffer(MAX_UPLOAD_BYTES + 1)], "big.jpg", {
       type: "image/jpeg",
     });
-    expect(validateUploadFile(file)).toContain("10 MB");
+    expect(validateUploadFile(file)).toContain(`${UPLOAD_LIMIT_MB} MB`);
   });
 });
 

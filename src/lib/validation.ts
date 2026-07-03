@@ -79,7 +79,12 @@ export const ALLOWED_IMAGE_TYPES = [
   "image/heif",
 ] as const;
 
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+// Vercel serverless functions reject request bodies over ~4.5 MB, so the app-level
+// limit must stay below that (with margin for multipart overhead) or in-limit uploads
+// would fail at the platform edge with an opaque 413.
+export const UPLOAD_LIMIT_MB = 4;
+export const MAX_UPLOAD_BYTES = UPLOAD_LIMIT_MB * 1024 * 1024;
+export const UPLOAD_LIMIT_MESSAGE = `Image must be ${UPLOAD_LIMIT_MB} MB or smaller`;
 
 export function validateUploadFile(file: File): string | null {
   if (
@@ -88,7 +93,7 @@ export function validateUploadFile(file: File): string | null {
     return "Image must be JPEG, PNG, WebP, or HEIC format";
   }
   if (file.size > MAX_UPLOAD_BYTES) {
-    return "Image must be 10 MB or smaller";
+    return UPLOAD_LIMIT_MESSAGE;
   }
   return null;
 }

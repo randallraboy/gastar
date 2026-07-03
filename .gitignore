@@ -32,5 +32,8 @@ Thumbs.db
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Harness runtime output (local receipt processing workspace)
+receipts-work/
+
 # Legacy (removed during migration)
 .gradle/

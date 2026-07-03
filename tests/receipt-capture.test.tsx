@@ -63,6 +63,39 @@ describe("ReceiptCapture", () => {
     expect(uploadWithProgress).not.toHaveBeenCalled();
   });
 
+  it("Retake re-opens the input that produced the photo", () => {
+    render(<ReceiptCapture onUploaded={() => {}} />);
+    const fallbackInput = screen.getByTestId("fallback-input");
+    const cameraInput = screen.getByTestId("camera-input");
+    let fallbackClicks = 0;
+    let cameraClicks = 0;
+    fallbackInput.addEventListener("click", () => fallbackClicks++);
+    cameraInput.addEventListener("click", () => cameraClicks++);
+
+    fireEvent.change(fallbackInput, { target: { files: [makeFile()] } });
+    fireEvent.click(screen.getByRole("button", { name: "Retake" }));
+
+    expect(fallbackClicks).toBe(1);
+    expect(cameraClicks).toBe(0);
+  });
+
+  it("oversized file is rejected with a plain-language limit message", async () => {
+    const { MAX_UPLOAD_BYTES, UPLOAD_LIMIT_MB } = await import("@/lib/validation");
+    render(<ReceiptCapture onUploaded={() => {}} />);
+    const big = new File([new ArrayBuffer(MAX_UPLOAD_BYTES + 1)], "big.jpg", {
+      type: "image/jpeg",
+    });
+
+    fireEvent.change(screen.getByTestId("fallback-input"), {
+      target: { files: [big] },
+    });
+
+    expect(screen.getByText(new RegExp(`${UPLOAD_LIMIT_MB} MB`))).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take photo" })).toBeInTheDocument();
+    expect(screen.queryByAltText("Receipt preview")).not.toBeInTheDocument();
+    expect(uploadWithProgress).not.toHaveBeenCalled();
+  });
+
   it("submit shows uploading state then success confirmation", async () => {
     const onUploaded = vi.fn();
     let sawProgress = false;

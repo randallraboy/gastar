@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { uploadWithProgress } from "@/lib/upload";
+import { MAX_UPLOAD_BYTES, UPLOAD_LIMIT_MB } from "@/lib/validation";
 
 type CaptureState = "idle" | "preview" | "uploading" | "success" | "error";
+type CaptureSource = "camera" | "fallback";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
 
@@ -20,6 +22,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
   const [error, setError] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const fallbackRef = useRef<HTMLInputElement>(null);
+  const sourceRef = useRef<CaptureSource>("camera");
   const abortRef = useRef<AbortController | null>(null);
 
   const revokePreview = useCallback((url: string | null) => {
@@ -49,7 +52,24 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
     };
   }, [previewUrl, revokePreview]);
 
-  function handleFileSelected(selected: File) {
+  function handleFileSelected(selected: File, source: CaptureSource) {
+    sourceRef.current = source;
+
+    if (selected.size > MAX_UPLOAD_BYTES) {
+      const sizeMb = (selected.size / (1024 * 1024)).toFixed(1);
+      revokePreview(previewUrl);
+      setFile(null);
+      setPreviewUrl(null);
+      setClientKey(null);
+      setError(
+        `That photo is too large (${sizeMb} MB). Images must be ${UPLOAD_LIMIT_MB} MB or smaller.`,
+      );
+      setState("idle");
+      if (cameraRef.current) cameraRef.current.value = "";
+      if (fallbackRef.current) fallbackRef.current.value = "";
+      return;
+    }
+
     revokePreview(previewUrl);
     const url = URL.createObjectURL(selected);
     setFile(selected);
@@ -58,6 +78,13 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
     setProgress(0);
     setError(null);
     setState("preview");
+  }
+
+  function retake() {
+    const source = sourceRef.current;
+    resetToIdle();
+    const input = source === "camera" ? cameraRef.current : fallbackRef.current;
+    input?.click();
   }
 
   async function submitCapture() {
@@ -108,9 +135,38 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
     abortRef.current?.abort();
   }
 
+  const hiddenInputs = (
+    <>
+      <input
+        ref={cameraRef}
+        type="file"
+        accept={ACCEPT}
+        capture="environment"
+        className="visually-hidden"
+        data-testid="camera-input"
+        onChange={(e) => {
+          const selected = e.target.files?.[0];
+          if (selected) handleFileSelected(selected, "camera");
+        }}
+      />
+      <input
+        ref={fallbackRef}
+        type="file"
+        accept={ACCEPT}
+        className="visually-hidden"
+        data-testid="fallback-input"
+        onChange={(e) => {
+          const selected = e.target.files?.[0];
+          if (selected) handleFileSelected(selected, "fallback");
+        }}
+      />
+    </>
+  );
+
   if (state === "success") {
     return (
       <div className="card capture-card">
+        {hiddenInputs}
         <p className="capture-success" role="status">
           Receipt queued
         </p>
@@ -121,6 +177,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
   if (state === "preview" || state === "uploading" || state === "error") {
     return (
       <div className="card capture-card">
+        {hiddenInputs}
         {previewUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={previewUrl} alt="Receipt preview" className="capture-preview" />
@@ -168,7 +225,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
                 Use this photo
               </button>
             )}
-            <button type="button" className="btn btn-block" onClick={resetToIdle}>
+            <button type="button" className="btn btn-block" onClick={retake}>
               Retake
             </button>
           </div>
@@ -179,29 +236,8 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
 
   return (
     <div className="card capture-card">
-      <input
-        ref={cameraRef}
-        type="file"
-        accept={ACCEPT}
-        capture="environment"
-        className="visually-hidden"
-        data-testid="camera-input"
-        onChange={(e) => {
-          const selected = e.target.files?.[0];
-          if (selected) handleFileSelected(selected);
-        }}
-      />
-      <input
-        ref={fallbackRef}
-        type="file"
-        accept={ACCEPT}
-        className="visually-hidden"
-        data-testid="fallback-input"
-        onChange={(e) => {
-          const selected = e.target.files?.[0];
-          if (selected) handleFileSelected(selected);
-        }}
-      />
+      {hiddenInputs}
+      {error && <p className="error">{error}</p>}
       <div className="capture-actions">
         <button
           type="button"
