@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { formatCad, parseDollarInput, centsToDollars } from "@/lib/money";
-import { BUDGET_CATEGORIES, type BudgetCategory } from "@/lib/budget-categories";
+import { CategoryPicker, formatCategoryPath } from "@/components/CategoryPicker";
 
 export type ExpenseFormValues = {
   amountCents: number;
   expenseDate: string;
   merchant: string;
   description: string;
-  category: BudgetCategory;
+  categoryId: string;
 };
 
 type ExpenseFormProps = {
   initial?: Partial<Omit<ExpenseFormValues, "description">> & {
     description?: string | null;
+    categoryPath?: string[];
   };
   pendingReceiptId?: string;
   submitLabel?: string;
@@ -42,16 +43,20 @@ export function ExpenseForm({
   );
   const [merchant, setMerchant] = useState(initial?.merchant ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [category, setCategory] = useState<BudgetCategory>(
-    initial?.category ?? BUDGET_CATEGORIES[0],
+  const [categoryId, setCategoryId] = useState<string | null>(
+    initial?.categoryId ?? null,
+  );
+  const [categoryPath, setCategoryPath] = useState<string[]>(
+    initial?.categoryPath ?? [],
   );
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (initial?.category) setCategory(initial.category);
-  }, [initial?.category]);
+    if (initial?.categoryId) setCategoryId(initial.categoryId);
+    if (initial?.categoryPath) setCategoryPath(initial.categoryPath);
+  }, [initial?.categoryId, initial?.categoryPath]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,12 +85,17 @@ export function ExpenseForm({
         return;
       }
 
+      if (!categoryId) {
+        setFieldErrors({ category: "Category is required" });
+        return;
+      }
+
       await onSubmit({
         amountCents,
         expenseDate,
         merchant: merchant.trim(),
         description: description.trim(),
-        category,
+        categoryId,
         pendingReceiptId,
       });
     } catch (err) {
@@ -149,20 +159,20 @@ export function ExpenseForm({
       </div>
 
       <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
-        <label htmlFor="category">Category</label>
-        <select
-          id="category"
-          className="input"
-          value={category}
-          onChange={(e) => setCategory(e.target.value as BudgetCategory)}
-          required
-        >
-          {BUDGET_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        <span id="category-label">Category</span>
+        {categoryPath.length > 0 && (
+          <p className="muted" style={{ margin: "var(--space-1) 0" }}>
+            Selected: {formatCategoryPath(categoryPath)}
+          </p>
+        )}
+        <CategoryPicker
+          value={categoryId}
+          onChange={(id, path) => {
+            setCategoryId(id);
+            setCategoryPath(path);
+          }}
+        />
+        {fieldErrors.category && <span className="error">{fieldErrors.category}</span>}
       </div>
 
       {error && <p className="error">{error}</p>}

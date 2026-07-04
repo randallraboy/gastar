@@ -15,6 +15,13 @@
       "when": 1783040000000,
       "tag": "0002_budget_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783128000000,
+      "tag": "0003_category_hierarchy",
+      "breakpoints": true
     }
   ]
 }

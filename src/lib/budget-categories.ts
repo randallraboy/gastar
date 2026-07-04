@@ -4,7 +4,7 @@ export type BudgetCategory = (typeof BUDGET_CATEGORIES)[number];
 
 export const DEFAULT_BUDGET_CATEGORY: BudgetCategory = "Needs";
 
-/** Maps legacy category names (from the old `categories` table) to budget categories. */
+/** Maps legacy category names (from the old flat categories table) to budget buckets. */
 export const LEGACY_CATEGORY_MAPPING: Record<string, BudgetCategory> = {
   groceries: "Needs",
   dining: "Wants",
@@ -18,60 +18,13 @@ export const LEGACY_CATEGORY_MAPPING: Record<string, BudgetCategory> = {
   uncategorized: "Needs",
 };
 
-/** Keyword rules for auto-categorization into budget categories. */
-export const CATEGORY_KEYWORDS: Record<BudgetCategory, readonly string[]> = {
-  Needs: [
-    "grocery",
-    "supermarket",
-    "metro",
-    "loblaws",
-    "sobeys",
-    "uber",
-    "lyft",
-    "transit",
-    "gas",
-    "parking",
-    "presto",
-    "rent",
-    "mortgage",
-    "property",
-    "hydro",
-    "electric",
-    "water",
-    "internet",
-    "bell",
-    "rogers",
-    "pharmacy",
-    "shoppers",
-    "doctor",
-    "dental",
-    "medical",
-  ],
-  Wants: [
-    "restaurant",
-    "cafe",
-    "coffee",
-    "tim hortons",
-    "starbucks",
-    "netflix",
-    "spotify",
-    "cinema",
-    "movie",
-    "game",
-    "amazon",
-    "walmart",
-    "costco",
-    "retail",
-    "store",
-    "airline",
-    "hotel",
-    "airbnb",
-    "flight",
-    "vacation",
-  ],
-  Savings: ["savings", "investment", "rrsp", "tfsa", "contribution"],
-};
-
 export function mapLegacyCategoryName(name: string): BudgetCategory {
   return LEGACY_CATEGORY_MAPPING[name.toLowerCase()] ?? DEFAULT_BUDGET_CATEGORY;
+}
+
+export function mapCategoryHintToBucket(hint: string): BudgetCategory | undefined {
+  const lower = hint.toLowerCase();
+  const fromLegacy = LEGACY_CATEGORY_MAPPING[lower];
+  if (fromLegacy) return fromLegacy;
+  return BUDGET_CATEGORIES.find((b) => b.toLowerCase() === lower);
 }

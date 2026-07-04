@@ -1,29 +1,36 @@
-import { and, eq, gte, lte, sql, desc, count, sum } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql, desc, count, sum } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { expenses, merchantCorrections, pendingReceipts } from "@/lib/db/schema";
 import type { Expense, User } from "@/lib/db/schema";
 import type { BudgetCategory } from "@/lib/budget-categories";
-import { BUDGET_CATEGORIES } from "@/lib/budget-categories";
 import { normalizeMerchant } from "@/lib/normalize";
 import { canConvertToManual, type ReceiptStatus } from "@/lib/receipt-state";
 import { expenseCreateSchema, expenseUpdateSchema } from "@/lib/validation";
 import { categorizeExpense } from "@/lib/categorize";
 import { deleteBlob } from "@/lib/blob";
+import {
+  buildCategoryTotals,
+  getDescendantIds,
+  indexCategories,
+} from "@/lib/category-tree";
+import { loadCategoryFlat, requireCategoryId } from "@/lib/categories";
+import type { CategoryTotalNode } from "@/lib/category-tree";
 import { z } from "zod";
 
 export type ListExpensesFilters = {
   from?: string;
   to?: string;
-  category?: BudgetCategory;
+  categoryId?: string;
+  bucket?: BudgetCategory;
   status?: "draft" | "confirmed";
   page?: number;
   pageSize?: number;
 };
 
-async function loadCorrections() {
+async function loadCorrections(): Promise<Map<string, string>> {
   const db = getDb();
   const correctionsRows = await db.select().from(merchantCorrections);
-  return new Map(correctionsRows.map((r) => [r.merchantNormalized, r.category]));
+  return new Map(correctionsRows.map((r) => [r.merchantNormalized, r.categoryId]));
 }
 
 export async function findDuplicate(
@@ -55,19 +62,19 @@ export async function findDuplicate(
 
 export async function upsertMerchantCorrection(
   merchantNormalized: string,
-  category: BudgetCategory,
+  categoryId: string,
 ): Promise<void> {
   const db = getDb();
   await db
     .insert(merchantCorrections)
-    .values({ merchantNormalized, category })
+    .values({ merchantNormalized, categoryId })
     .onConflictDoUpdate({
       target: merchantCorrections.merchantNormalized,
-      set: { category, updatedAt: new Date() },
+      set: { categoryId, updatedAt: new Date() },
     });
 }
 
-function buildListConditions(filters: ListExpensesFilters) {
+async function buildListConditions(filters: ListExpensesFilters) {
   const status = filters.status ?? "confirmed";
   const conditions = [eq(expenses.status, status)];
 
@@ -77,8 +84,17 @@ function buildListConditions(filters: ListExpensesFilters) {
   if (filters.to) {
     conditions.push(lte(expenses.expenseDate, filters.to));
   }
-  if (filters.category) {
-    conditions.push(eq(expenses.category, filters.category));
+
+  if (filters.categoryId) {
+    const flat = await loadCategoryFlat();
+    const ids = [...getDescendantIds(filters.categoryId, flat)];
+    conditions.push(inArray(expenses.categoryId, ids));
+  } else if (filters.bucket) {
+    const flat = await loadCategoryFlat();
+    const bucketIds = flat.filter((c) => c.bucket === filters.bucket).map((c) => c.id);
+    if (bucketIds.length > 0) {
+      conditions.push(inArray(expenses.categoryId, bucketIds));
+    }
   }
 
   return and(...conditions);
@@ -88,7 +104,7 @@ export async function listExpenses(filters: ListExpensesFilters = {}) {
   const db = getDb();
   const page = filters.page ?? 1;
   const pageSize = filters.pageSize ?? 50;
-  const where = buildListConditions(filters);
+  const where = await buildListConditions(filters);
 
   const [items, [{ total }], [{ sumCents }]] = await Promise.all([
     db
@@ -112,33 +128,28 @@ export async function listExpenses(filters: ListExpensesFilters = {}) {
   };
 }
 
-export async function getCategoryTotals(filters: ListExpensesFilters = {}) {
+export async function getCategoryTotals(
+  filters: ListExpensesFilters = {},
+): Promise<CategoryTotalNode[]> {
   const db = getDb();
-  const where = buildListConditions(filters);
+  const where = await buildListConditions(filters);
+  const flat = await loadCategoryFlat();
 
   const rows = await db
     .select({
-      category: expenses.category,
+      categoryId: expenses.categoryId,
       sumCents: sum(expenses.amountCents),
     })
     .from(expenses)
     .where(where)
-    .groupBy(expenses.category);
+    .groupBy(expenses.categoryId);
 
-  const totals: Record<BudgetCategory, number> = {
-    Needs: 0,
-    Wants: 0,
-    Savings: 0,
-  };
-
+  const amounts = new Map<string, number>();
   for (const row of rows) {
-    totals[row.category] = Number(row.sumCents ?? 0);
+    amounts.set(row.categoryId, Number(row.sumCents ?? 0));
   }
 
-  return BUDGET_CATEGORIES.map((category) => ({
-    category,
-    sumCents: totals[category],
-  }));
+  return buildCategoryTotals(flat, amounts);
 }
 
 export type CreateExpenseInput = z.infer<typeof expenseCreateSchema> & {
@@ -152,18 +163,22 @@ export async function createExpense(user: User, input: CreateExpenseInput) {
   const parsed = expenseCreateSchema.parse(input);
   const db = getDb();
   const merchantNormalized = normalizeMerchant(parsed.merchant);
+  const flat = await loadCategoryFlat();
   const corrections = await loadCorrections();
 
-  let category = parsed.category;
+  let categoryId = parsed.categoryId;
   let categoryWasAuto = input.categoryWasAuto ?? false;
 
-  if (!category) {
+  if (!categoryId) {
     const result = categorizeExpense(
       { merchantNormalized, description: parsed.description },
+      flat,
       corrections,
     );
-    category = result.category;
+    categoryId = result.categoryId;
     categoryWasAuto = result.categoryWasAuto;
+  } else {
+    await requireCategoryId(categoryId, flat);
   }
 
   if (!parsed.overrideDuplicate) {
@@ -196,7 +211,7 @@ export async function createExpense(user: User, input: CreateExpenseInput) {
         merchant: parsed.merchant,
         merchantNormalized,
         description: parsed.description ?? null,
-        category,
+        categoryId,
         status: "confirmed",
         source: "manual",
         receiptBlobKey: receipt.blobKey,
@@ -218,7 +233,7 @@ export async function createExpense(user: User, input: CreateExpenseInput) {
       merchant: parsed.merchant,
       merchantNormalized,
       description: parsed.description ?? null,
-      category,
+      categoryId,
       status: input.status ?? "confirmed",
       source: input.source ?? "manual",
       receiptBlobKey: input.receiptBlobKey ?? null,
@@ -237,6 +252,7 @@ export async function updateExpense(
 ) {
   const parsed = expenseUpdateSchema.parse(input);
   const db = getDb();
+  const flat = await loadCategoryFlat();
 
   const [existing] = await db
     .select()
@@ -262,11 +278,12 @@ export async function updateExpense(
     updates.merchantNormalized = merchantNormalized;
   }
   if (parsed.description !== undefined) updates.description = parsed.description;
-  if (parsed.category !== undefined) {
-    updates.category = parsed.category;
+  if (parsed.categoryId !== undefined) {
+    await requireCategoryId(parsed.categoryId, flat);
+    updates.categoryId = parsed.categoryId;
     updates.categoryWasAuto = false;
     if (options?.learnCategory !== false) {
-      await upsertMerchantCorrection(merchantNormalized, parsed.category);
+      await upsertMerchantCorrection(merchantNormalized, parsed.categoryId);
     }
   }
 
@@ -313,6 +330,7 @@ export async function confirmExpense(
 ) {
   const parsed = expenseUpdateSchema.parse(input);
   const db = getDb();
+  const flat = await loadCategoryFlat();
   const [existing] = await db
     .select()
     .from(expenses)
@@ -327,13 +345,13 @@ export async function confirmExpense(
     expenseDate: parsed.expenseDate ?? existing.expenseDate,
     merchant: parsed.merchant ?? existing.merchant,
     description: parsed.description ?? existing.description,
-    category: parsed.category ?? existing.category,
+    categoryId: parsed.categoryId ?? existing.categoryId,
     overrideDuplicate: parsed.overrideDuplicate,
   };
 
   const merchantNormalized = normalizeMerchant(merged.merchant);
 
-  if (!merged.overrideDuplicate) {
+  if (!parsed.overrideDuplicate) {
     const duplicate = await findDuplicate(
       merged.expenseDate,
       merged.amountCents,
@@ -345,20 +363,24 @@ export async function confirmExpense(
     }
   }
 
+  if (parsed.categoryId) {
+    await requireCategoryId(parsed.categoryId, flat);
+  }
+
   const updates: Partial<typeof expenses.$inferInsert> = {
     amountCents: merged.amountCents,
     expenseDate: merged.expenseDate,
     merchant: merged.merchant,
     merchantNormalized,
     description: merged.description,
-    category: merged.category,
+    categoryId: merged.categoryId,
     status: "confirmed",
     updatedAt: new Date(),
   };
 
-  if (parsed.category && parsed.category !== existing.category) {
+  if (parsed.categoryId && parsed.categoryId !== existing.categoryId) {
     updates.categoryWasAuto = false;
-    await upsertMerchantCorrection(merchantNormalized, parsed.category);
+    await upsertMerchantCorrection(merchantNormalized, parsed.categoryId);
   }
 
   const [confirmed] = await db
@@ -393,10 +415,12 @@ export async function createDraftFromHarness(
 ) {
   const db = getDb();
   const merchantNormalized = normalizeMerchant(data.merchant);
+  const flat = await loadCategoryFlat();
   const corrections = await loadCorrections();
 
-  const { category, categoryWasAuto } = categorizeExpense(
+  const { categoryId, categoryWasAuto } = categorizeExpense(
     { merchantNormalized, categoryHint: data.categoryHint },
+    flat,
     corrections,
   );
 
@@ -408,7 +432,7 @@ export async function createDraftFromHarness(
       merchant: data.merchant,
       merchantNormalized,
       description: null,
-      category,
+      categoryId,
       status: "draft",
       source: "photo",
       receiptBlobKey: blobKey,
@@ -437,4 +461,9 @@ export async function getExpenseById(id: string) {
     .where(eq(expenses.id, id))
     .limit(1);
   return expense ?? null;
+}
+
+export async function getCategoryIndex() {
+  const flat = await loadCategoryFlat();
+  return indexCategories(flat);
 }

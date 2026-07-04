@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ExpenseForm, formatCad } from "@/components/ExpenseForm";
+import { formatCategoryPath } from "@/components/CategoryPicker";
 import { BUDGET_CATEGORIES, type BudgetCategory } from "@/lib/budget-categories";
 
 type Expense = {
@@ -10,15 +11,22 @@ type Expense = {
   expenseDate: string;
   merchant: string;
   description: string | null;
-  category: BudgetCategory;
+  categoryId: string;
+  categoryPath: string[];
+  bucket: BudgetCategory;
   categoryWasAuto: boolean;
+  subcategoryResolved: boolean;
   status: "draft" | "confirmed";
   receiptImageUrl: string | null;
 };
 
 type CategoryTotal = {
-  category: BudgetCategory;
+  categoryId: string;
+  name: string;
+  bucket: BudgetCategory;
+  depth: number;
   sumCents: number;
+  children: CategoryTotal[];
 };
 
 type ListResponse = {
@@ -28,6 +36,48 @@ type ListResponse = {
   categoryTotals: CategoryTotal[];
 };
 
+function CategoryBreakdown({
+  nodes,
+  expanded,
+  onToggle,
+}: {
+  nodes: CategoryTotal[];
+  expanded: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <ul className="category-breakdown">
+      {nodes.map((node) => (
+        <li key={node.categoryId}>
+          <div className="category-breakdown-row">
+            {node.children.length > 0 ? (
+              <button
+                type="button"
+                className="btn btn-compact"
+                onClick={() => onToggle(node.categoryId)}
+                aria-expanded={expanded.has(node.categoryId)}
+              >
+                {expanded.has(node.categoryId) ? "−" : "+"}
+              </button>
+            ) : (
+              <span className="category-breakdown-spacer" />
+            )}
+            <span>{node.name}</span>
+            <strong>{formatCad(node.sumCents)}</strong>
+          </div>
+          {node.children.length > 0 && expanded.has(node.categoryId) && (
+            <CategoryBreakdown
+              nodes={node.children}
+              expanded={expanded}
+              onToggle={onToggle}
+            />
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [drafts, setDrafts] = useState<Expense[]>([]);
@@ -35,7 +85,9 @@ export default function ExpensesPage() {
   const [sumCents, setSumCents] = useState(0);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<BudgetCategory | "">("");
+  const [bucketFilter, setBucketFilter] = useState<BudgetCategory | "">("");
+  const [categoryIdFilter, setCategoryIdFilter] = useState("");
+  const [expandedBuckets, setExpandedBuckets] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [confirmingDraft, setConfirmingDraft] = useState<Expense | null>(null);
@@ -51,7 +103,8 @@ export default function ExpensesPage() {
     const params = new URLSearchParams({ status: "confirmed" });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    if (categoryFilter) params.set("category", categoryFilter);
+    if (bucketFilter) params.set("bucket", bucketFilter);
+    if (categoryIdFilter) params.set("categoryId", categoryIdFilter);
 
     const [confirmedRes, draftsRes] = await Promise.all([
       fetch(`/api/expenses?${params}`),
@@ -66,7 +119,7 @@ export default function ExpensesPage() {
     setCategoryTotals(confirmed.categoryTotals);
     setDrafts(draftData.items);
     setLoading(false);
-  }, [from, to, categoryFilter]);
+  }, [from, to, bucketFilter, categoryIdFilter]);
 
   useEffect(() => {
     loadExpenses();
@@ -78,7 +131,7 @@ export default function ExpensesPage() {
       expenseDate: string;
       merchant: string;
       description: string;
-      category: BudgetCategory;
+      categoryId: string;
       overrideDuplicate?: boolean;
       pendingReceiptId?: string;
     },
@@ -90,7 +143,7 @@ export default function ExpensesPage() {
       expenseDate: values.expenseDate,
       merchant: values.merchant,
       description: values.description || null,
-      category: values.category,
+      categoryId: values.categoryId,
       overrideDuplicate: values.overrideDuplicate,
       pendingReceiptId: values.pendingReceiptId,
     };
@@ -144,13 +197,31 @@ export default function ExpensesPage() {
     await loadExpenses();
   }
 
-  async function quickCategoryChange(expense: Expense, category: BudgetCategory) {
-    await fetch(`/api/expenses/${expense.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category }),
+  function toggleExpanded(id: string) {
+    setExpandedBuckets((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
-    await loadExpenses();
+  }
+
+  function renderCategoryBadges(expense: Expense) {
+    return (
+      <>
+        <span className="badge">{formatCategoryPath(expense.categoryPath)}</span>
+        {expense.categoryWasAuto && (
+          <span className="badge" style={{ marginLeft: "var(--space-2)" }}>
+            auto
+          </span>
+        )}
+        {expense.categoryWasAuto && !expense.subcategoryResolved && (
+          <span className="badge badge-warn" style={{ marginLeft: "var(--space-2)" }}>
+            Bucket only
+          </span>
+        )}
+      </>
+    );
   }
 
   return (
@@ -192,6 +263,7 @@ export default function ExpensesPage() {
                     <strong>{draft.merchant}</strong> — {formatCad(draft.amountCents)}{" "}
                     on {draft.expenseDate}
                   </p>
+                  <p className="muted">{formatCategoryPath(draft.categoryPath)}</p>
                   <div className="expense-card-actions">
                     <button
                       className="btn btn-primary"
@@ -218,18 +290,37 @@ export default function ExpensesPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
             gap: "var(--space-3)",
           }}
         >
-          {categoryTotals.map(({ category, sumCents: total }) => (
-            <div key={category} className="card">
+          {categoryTotals.map((bucket) => (
+            <div key={bucket.categoryId} className="card">
               <div style={{ fontSize: "0.875rem", color: "var(--muted)" }}>
-                {category}
+                {bucket.name}
               </div>
               <div style={{ fontSize: "1.25rem", fontWeight: 600 }}>
-                {formatCad(total)}
+                {formatCad(bucket.sumCents)}
               </div>
+              {bucket.children.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-compact"
+                    style={{ marginTop: "var(--space-2)" }}
+                    onClick={() => toggleExpanded(bucket.categoryId)}
+                  >
+                    {expandedBuckets.has(bucket.categoryId) ? "Hide" : "Show"} breakdown
+                  </button>
+                  {expandedBuckets.has(bucket.categoryId) && (
+                    <CategoryBreakdown
+                      nodes={bucket.children}
+                      expanded={expandedBuckets}
+                      onToggle={toggleExpanded}
+                    />
+                  )}
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -257,12 +348,15 @@ export default function ExpensesPage() {
           />
         </div>
         <div className="form-group">
-          <label htmlFor="categoryFilter">Category</label>
+          <label htmlFor="bucketFilter">Bucket</label>
           <select
-            id="categoryFilter"
+            id="bucketFilter"
             className="input"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as BudgetCategory | "")}
+            value={bucketFilter}
+            onChange={(e) => {
+              setBucketFilter(e.target.value as BudgetCategory | "");
+              setCategoryIdFilter("");
+            }}
           >
             <option value="">All</option>
             {BUDGET_CATEGORIES.map((c) => (
@@ -271,6 +365,16 @@ export default function ExpensesPage() {
               </option>
             ))}
           </select>
+        </div>
+        <div className="form-group">
+          <label htmlFor="categoryIdFilter">Subcategory ID</label>
+          <input
+            id="categoryIdFilter"
+            className="input"
+            placeholder="Filter by category node"
+            value={categoryIdFilter}
+            onChange={(e) => setCategoryIdFilter(e.target.value)}
+          />
         </div>
       </div>
 
@@ -301,23 +405,7 @@ export default function ExpensesPage() {
                   <td>{expense.expenseDate}</td>
                   <td>{expense.merchant}</td>
                   <td>{expense.description ?? "—"}</td>
-                  <td>
-                    <select
-                      className="input"
-                      value={expense.category}
-                      onChange={(e) =>
-                        quickCategoryChange(expense, e.target.value as BudgetCategory)
-                      }
-                      style={{ width: "auto" }}
-                    >
-                      {BUDGET_CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    {expense.categoryWasAuto && <span className="badge">auto</span>}
-                  </td>
+                  <td>{renderCategoryBadges(expense)}</td>
                   <td>{formatCad(expense.amountCents)}</td>
                   <td>
                     {expense.receiptImageUrl && (
@@ -361,32 +449,11 @@ export default function ExpensesPage() {
                   <strong>{expense.merchant}</strong>
                 </div>
                 <div className="expense-card-meta">{expense.expenseDate}</div>
-                <div>
-                  <span className="badge">{expense.category}</span>
-                  {expense.categoryWasAuto && (
-                    <span className="badge" style={{ marginLeft: "var(--space-2)" }}>
-                      auto
-                    </span>
-                  )}
-                </div>
+                <div>{renderCategoryBadges(expense)}</div>
                 {expense.description && (
                   <p className="expense-card-meta">{expense.description}</p>
                 )}
                 <div className="expense-card-actions">
-                  <select
-                    className="input"
-                    value={expense.category}
-                    onChange={(e) =>
-                      quickCategoryChange(expense, e.target.value as BudgetCategory)
-                    }
-                    aria-label={`Category for ${expense.merchant}`}
-                  >
-                    {BUDGET_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
                   {expense.receiptImageUrl && (
                     <button className="btn" onClick={() => setViewingReceipt(expense)}>
                       Receipt

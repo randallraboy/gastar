@@ -5,6 +5,8 @@ const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const budgetCategorySchema = z.enum(BUDGET_CATEGORIES);
 
+export const categoryIdSchema = z.string().uuid("Invalid category");
+
 export const expenseCreateSchema = z.object({
   amountCents: z
     .number({ invalid_type_error: "Enter a valid amount" })
@@ -22,7 +24,7 @@ export const expenseCreateSchema = z.object({
     .min(1, "Merchant is required")
     .max(200, "Merchant must be 200 characters or fewer"),
   description: z.string().max(500).nullable().optional(),
-  category: budgetCategorySchema.optional(),
+  categoryId: categoryIdSchema.optional(),
   pendingReceiptId: z.string().uuid().optional(),
   overrideDuplicate: z.boolean().optional(),
 });
@@ -38,8 +40,20 @@ export const expenseUpdateSchema = z.object({
     .optional(),
   merchant: z.string().trim().min(1).max(200).optional(),
   description: z.string().max(500).nullable().optional(),
-  category: budgetCategorySchema.optional(),
+  categoryId: categoryIdSchema.optional(),
   overrideDuplicate: z.boolean().optional(),
+});
+
+export const categoryCreateSchema = z.object({
+  parentId: categoryIdSchema,
+  name: z.string().trim().min(1, "Name is required").max(80),
+  keywords: z.array(z.string().trim().min(1)).optional(),
+});
+
+export const categoryUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  keywords: z.array(z.string().trim().min(1)).optional(),
+  displayOrder: z.number().int().min(0).optional(),
 });
 
 export const harnessParsedResultSchema = z.object({
@@ -68,9 +82,6 @@ export const ALLOWED_IMAGE_TYPES = [
   "image/heif",
 ] as const;
 
-// Vercel serverless functions reject request bodies over ~4.5 MB, so the app-level
-// limit must stay below that (with margin for multipart overhead) or in-limit uploads
-// would fail at the platform edge with an opaque 413.
 export const UPLOAD_LIMIT_MB = 4;
 export const MAX_UPLOAD_BYTES = UPLOAD_LIMIT_MB * 1024 * 1024;
 export const UPLOAD_LIMIT_MESSAGE = `Image must be ${UPLOAD_LIMIT_MB} MB or smaller`;

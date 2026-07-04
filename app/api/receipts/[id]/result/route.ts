@@ -1,7 +1,7 @@
 import { requireHarness, handleApiError } from "@/lib/authz";
 import { getReceiptById, markUnreadable } from "@/lib/receipts";
 import { canProcessReceipt, type ReceiptStatus } from "@/lib/receipt-state";
-import { createDraftFromHarness } from "@/lib/expenses";
+import { createDraftFromHarness, getCategoryIndex } from "@/lib/expenses";
 import { harnessResultSchema } from "@/lib/validation";
 import { toExpenseDto, toPendingReceiptDto } from "@/lib/api-types";
 import { getDb } from "@/lib/db";
@@ -65,7 +65,8 @@ export async function POST(request: Request, { params }: Params) {
       receipt.blobKey,
     );
 
-    return Response.json({ draftExpense: toExpenseDto(draft) }, { status: 201 });
+    const byId = await getCategoryIndex();
+    return Response.json({ draftExpense: toExpenseDto(draft, byId) }, { status: 201 });
   } catch (err) {
     return handleApiError(err);
   }

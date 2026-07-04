@@ -1,5 +1,7 @@
 import type { Expense } from "@/lib/db/schema";
 import type { BudgetCategory } from "@/lib/budget-categories";
+import type { CategoryFlat, CategoryTotalNode } from "@/lib/category-tree";
+import { getCategoryPath, subcategoryResolved } from "@/lib/category-tree";
 
 export type ExpenseDto = {
   id: string;
@@ -8,14 +10,21 @@ export type ExpenseDto = {
   expenseDate: string;
   merchant: string;
   description: string | null;
-  category: BudgetCategory;
+  categoryId: string;
+  categoryPath: string[];
+  bucket: BudgetCategory;
   categoryWasAuto: boolean;
+  subcategoryResolved: boolean;
   status: "draft" | "confirmed";
   source: "manual" | "photo";
   receiptImageUrl: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type CategoryNodeDto = CategoryFlat & {
+  children?: CategoryNodeDto[];
 };
 
 export type PendingReceiptDto = {
@@ -28,7 +37,12 @@ export type PendingReceiptDto = {
   uploadedAt: string;
 };
 
-export function toExpenseDto(expense: Expense): ExpenseDto {
+export function toExpenseDto(
+  expense: Expense,
+  byId: Map<string, CategoryFlat>,
+): ExpenseDto {
+  const node = byId.get(expense.categoryId);
+  const bucket = node?.bucket ?? "Needs";
   return {
     id: expense.id,
     amountCents: expense.amountCents,
@@ -36,8 +50,11 @@ export function toExpenseDto(expense: Expense): ExpenseDto {
     expenseDate: expense.expenseDate,
     merchant: expense.merchant,
     description: expense.description,
-    category: expense.category,
+    categoryId: expense.categoryId,
+    categoryPath: getCategoryPath(expense.categoryId, byId),
+    bucket,
     categoryWasAuto: expense.categoryWasAuto,
+    subcategoryResolved: subcategoryResolved(expense.categoryId, byId),
     status: expense.status as "draft" | "confirmed",
     source: expense.source as "manual" | "photo",
     receiptImageUrl: expense.receiptBlobKey
@@ -67,3 +84,5 @@ export function toPendingReceiptDto(receipt: {
     uploadedAt: receipt.uploadedAt.toISOString(),
   };
 }
+
+export type { CategoryTotalNode };

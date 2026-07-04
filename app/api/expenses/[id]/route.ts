@@ -1,5 +1,10 @@
 import { requireUser, handleApiError } from "@/lib/authz";
-import { getExpenseById, updateExpense, deleteExpense } from "@/lib/expenses";
+import {
+  getExpenseById,
+  updateExpense,
+  deleteExpense,
+  getCategoryIndex,
+} from "@/lib/expenses";
 import { toExpenseDto } from "@/lib/api-types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -18,7 +23,7 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
-    return Response.json(toExpenseDto(updated));
+    return Response.json(toExpenseDto(updated, await getCategoryIndex()));
   } catch (err) {
     return handleApiError(err);
   }
@@ -56,7 +61,7 @@ export async function GET(_request: Request, { params }: Params) {
       );
     }
 
-    return Response.json(toExpenseDto(expense));
+    return Response.json(toExpenseDto(expense, await getCategoryIndex()));
   } catch (err) {
     return handleApiError(err);
   }
