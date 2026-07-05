@@ -10,6 +10,7 @@ export type ExpenseDto = {
   expenseDate: string;
   merchant: string;
   description: string | null;
+  note: string | null;
   categoryId: string;
   categoryPath: string[];
   bucket: BudgetCategory;
@@ -32,6 +33,7 @@ export type PendingReceiptDto = {
   status: "pending" | "processed" | "unreadable" | "converted";
   imageUrl: string;
   errorNote: string | null;
+  note: string | null;
   draftExpenseId: string | null;
   uploadedBy: string;
   uploadedAt: string;
@@ -50,6 +52,7 @@ export function toExpenseDto(
     expenseDate: expense.expenseDate,
     merchant: expense.merchant,
     description: expense.description,
+    note: expense.note,
     categoryId: expense.categoryId,
     categoryPath: getCategoryPath(expense.categoryId, byId),
     bucket,
@@ -70,6 +73,7 @@ export function toPendingReceiptDto(receipt: {
   id: string;
   status: string;
   errorNote: string | null;
+  note: string | null;
   draftExpenseId: string | null;
   uploadedBy: string;
   uploadedAt: Date;
@@ -79,6 +83,7 @@ export function toPendingReceiptDto(receipt: {
     status: receipt.status as PendingReceiptDto["status"],
     imageUrl: `/api/receipts/${receipt.id}/image`,
     errorNote: receipt.errorNote,
+    note: receipt.note,
     draftExpenseId: receipt.draftExpenseId,
     uploadedBy: receipt.uploadedBy,
     uploadedAt: receipt.uploadedAt.toISOString(),

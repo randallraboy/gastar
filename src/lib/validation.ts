@@ -7,6 +7,13 @@ export const budgetCategorySchema = z.enum(BUDGET_CATEGORIES);
 
 export const categoryIdSchema = z.string().uuid("Invalid category");
 
+export const receiptNoteSchema = z
+  .string()
+  .trim()
+  .max(250, "Note must be 250 characters or fewer")
+  .nullable()
+  .optional();
+
 export const expenseCreateSchema = z.object({
   amountCents: z
     .number({ invalid_type_error: "Enter a valid amount" })

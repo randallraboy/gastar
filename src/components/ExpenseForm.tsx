@@ -15,6 +15,7 @@ export type ExpenseFormValues = {
 type ExpenseFormProps = {
   initial?: Partial<Omit<ExpenseFormValues, "description">> & {
     description?: string | null;
+    note?: string | null;
     categoryPath?: string[];
   };
   pendingReceiptId?: string;
@@ -107,6 +108,19 @@ export function ExpenseForm({
 
   return (
     <form onSubmit={handleSubmit}>
+      {initial?.note && (
+        <div
+          className="card"
+          style={{
+            marginBottom: "var(--space-4)",
+            fontStyle: "italic",
+            color: "var(--muted)",
+          }}
+        >
+          Receipt note: “{initial.note}”
+        </div>
+      )}
+
       <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
         <label htmlFor="amount">Amount (CAD)</label>
         <input

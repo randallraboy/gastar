@@ -65,6 +65,7 @@ export const expenses = pgTable(
     merchant: text("merchant").notNull(),
     merchantNormalized: text("merchant_normalized").notNull(),
     description: text("description"),
+    note: text("note"),
     categoryId: uuid("category_id")
       .notNull()
       .references(() => categories.id, { onDelete: "restrict" }),
@@ -84,6 +85,10 @@ export const expenses = pgTable(
     check("expenses_status_check", sql`${table.status} IN ('draft', 'confirmed')`),
     check("expenses_source_check", sql`${table.source} IN ('manual', 'photo')`),
     check("expenses_merchant_nonempty", sql`length(trim(${table.merchant})) > 0`),
+    check(
+      "expenses_note_len",
+      sql`${table.note} IS NULL OR char_length(${table.note}) <= 250`,
+    ),
     index("expenses_expense_date_idx").on(table.expenseDate),
     index("expenses_category_id_idx").on(table.categoryId),
     index("expenses_status_idx").on(table.status),
@@ -102,6 +107,7 @@ export const pendingReceipts = pgTable(
     blobKey: text("blob_key").notNull(),
     status: text("status").notNull().default("pending"),
     errorNote: text("error_note"),
+    note: text("note"),
     draftExpenseId: uuid("draft_expense_id").references(() => expenses.id),
     uploadedBy: uuid("uploaded_by")
       .notNull()
@@ -114,6 +120,10 @@ export const pendingReceipts = pgTable(
     check(
       "pending_receipts_status_check",
       sql`${table.status} IN ('pending', 'processed', 'unreadable', 'converted')`,
+    ),
+    check(
+      "pending_receipts_note_len",
+      sql`${table.note} IS NULL OR char_length(${table.note}) <= 250`,
     ),
     uniqueIndex("pending_receipts_client_key_idx").on(table.clientKey),
   ],

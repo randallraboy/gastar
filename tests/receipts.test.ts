@@ -91,6 +91,89 @@ describe("deleteReceipt status guard", () => {
   });
 });
 
+describe("updateReceiptNote status guard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function mockDb(opts: {
+    receipt?: Record<string, unknown>;
+    onUpdate?: (values: Record<string, unknown>) => void;
+  }) {
+    const db = {
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => (opts.receipt ? [opts.receipt] : []),
+          }),
+        }),
+      }),
+      update: () => ({
+        set: (values: Record<string, unknown>) => {
+          opts.onUpdate?.(values);
+          return {
+            where: () => ({
+              returning: async () => [{ ...opts.receipt, ...values }],
+            }),
+          };
+        },
+      }),
+    };
+    vi.mocked(getDb).mockReturnValue(db as unknown as ReturnType<typeof getDb>);
+  }
+
+  it("edits the note while status is pending (and trims it)", async () => {
+    let updated: Record<string, unknown> | undefined;
+    mockDb({
+      receipt: { id: "r1", status: "pending", note: null },
+      onUpdate: (v) => (updated = v),
+    });
+
+    const { updateReceiptNote } = await import("@/lib/receipts");
+    const result = await updateReceiptNote("r1", "  new guidance  ");
+
+    expect(result.outcome).toBe("updated");
+    expect(updated?.note).toBe("new guidance");
+  });
+
+  it("clears the note when given an empty value", async () => {
+    let updated: Record<string, unknown> | undefined;
+    mockDb({
+      receipt: { id: "r1", status: "pending", note: "old" },
+      onUpdate: (v) => (updated = v),
+    });
+
+    const { updateReceiptNote } = await import("@/lib/receipts");
+    const result = await updateReceiptNote("r1", "   ");
+
+    expect(result.outcome).toBe("updated");
+    expect(updated?.note).toBeNull();
+  });
+
+  it("reports not_found for a missing receipt", async () => {
+    mockDb({ receipt: undefined });
+
+    const { updateReceiptNote } = await import("@/lib/receipts");
+    const result = await updateReceiptNote("missing", "x");
+
+    expect(result.outcome).toBe("not_found");
+  });
+
+  it("refuses to edit a non-pending receipt", async () => {
+    let updateCalled = false;
+    mockDb({
+      receipt: { id: "r1", status: "processed", note: null },
+      onUpdate: () => (updateCalled = true),
+    });
+
+    const { updateReceiptNote } = await import("@/lib/receipts");
+    const result = await updateReceiptNote("r1", "x");
+
+    expect(result.outcome).toBe("invalid_status");
+    expect(updateCalled).toBe(false);
+  });
+});
+
 describe("upload validation", () => {
   it("rejects unsupported file types", () => {
     const file = new File(["x"], "test.gif", { type: "image/gif" });
@@ -224,6 +307,58 @@ describe("createPendingReceipt idempotency", () => {
     const { created } = await createPendingReceipt(user, validFile);
     expect(created).toBe(true);
     expect(uploadStagingBlob).toHaveBeenCalled();
+  });
+
+  it("persists a note when one is provided", async () => {
+    const { uploadStagingBlob } = await import("@/lib/blob");
+    vi.mocked(uploadStagingBlob).mockResolvedValue("blob/note.jpg");
+
+    let insertedValues: Record<string, unknown> | undefined;
+    const db = {
+      select: () => ({
+        from: () => ({ where: () => ({ limit: async () => [] }) }),
+      }),
+      insert: () => ({
+        values: (v: Record<string, unknown>) => {
+          insertedValues = v;
+          return {
+            returning: async () => [{ id: "r-note", ...v, status: "pending" }],
+          };
+        },
+      }),
+    };
+    vi.mocked(getDb).mockReturnValue(db as unknown as ReturnType<typeof getDb>);
+
+    const { createPendingReceipt } = await import("@/lib/receipts");
+    await createPendingReceipt(user, validFile, undefined, "the fan is a Wants item");
+
+    expect(insertedValues?.note).toBe("the fan is a Wants item");
+  });
+
+  it("stores null note when none is provided (no regression)", async () => {
+    const { uploadStagingBlob } = await import("@/lib/blob");
+    vi.mocked(uploadStagingBlob).mockResolvedValue("blob/nonote.jpg");
+
+    let insertedValues: Record<string, unknown> | undefined;
+    const db = {
+      select: () => ({
+        from: () => ({ where: () => ({ limit: async () => [] }) }),
+      }),
+      insert: () => ({
+        values: (v: Record<string, unknown>) => {
+          insertedValues = v;
+          return {
+            returning: async () => [{ id: "r-nonote", ...v, status: "pending" }],
+          };
+        },
+      }),
+    };
+    vi.mocked(getDb).mockReturnValue(db as unknown as ReturnType<typeof getDb>);
+
+    const { createPendingReceipt } = await import("@/lib/receipts");
+    await createPendingReceipt(user, validFile);
+
+    expect(insertedValues?.note).toBeNull();
   });
 
   it("returns existing row on unique-index conflict race", async () => {

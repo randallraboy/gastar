@@ -211,6 +211,7 @@ export async function createExpense(user: User, input: CreateExpenseInput) {
         merchant: parsed.merchant,
         merchantNormalized,
         description: parsed.description ?? null,
+        note: receipt.note ?? null,
         categoryId,
         status: "confirmed",
         source: "manual",
@@ -412,6 +413,7 @@ export async function createDraftFromHarness(
     categoryHint?: string;
   },
   blobKey: string,
+  note?: string | null,
 ) {
   const db = getDb();
   const merchantNormalized = normalizeMerchant(data.merchant);
@@ -432,6 +434,7 @@ export async function createDraftFromHarness(
       merchant: data.merchant,
       merchantNormalized,
       description: null,
+      note: note ?? null,
       categoryId,
       status: "draft",
       source: "photo",

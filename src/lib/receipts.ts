@@ -24,6 +24,7 @@ export async function createPendingReceipt(
   user: User,
   file: File,
   clientKey?: string,
+  note?: string | null,
 ): Promise<CreatePendingReceiptResult> {
   const db = getDb();
 
@@ -58,6 +59,7 @@ export async function createPendingReceipt(
         blobKey,
         uploadedBy: user.id,
         clientKey: clientKey ?? null,
+        note: note && note.length > 0 ? note : null,
       })
       .returning();
 
@@ -80,6 +82,40 @@ export async function createPendingReceipt(
     }
     throw err;
   }
+}
+
+export type UpdateReceiptNoteResult =
+  | { outcome: "updated"; receipt: PendingReceipt }
+  | { outcome: "not_found" }
+  | { outcome: "invalid_status" };
+
+export async function updateReceiptNote(
+  id: string,
+  note: string | null,
+): Promise<UpdateReceiptNoteResult> {
+  const db = getDb();
+  const [receipt] = await db
+    .select()
+    .from(pendingReceipts)
+    .where(eq(pendingReceipts.id, id))
+    .limit(1);
+
+  if (!receipt) {
+    return { outcome: "not_found" };
+  }
+
+  if (receipt.status !== "pending") {
+    return { outcome: "invalid_status" };
+  }
+
+  const trimmed = note?.trim();
+  const [updated] = await db
+    .update(pendingReceipts)
+    .set({ note: trimmed && trimmed.length > 0 ? trimmed : null })
+    .where(eq(pendingReceipts.id, id))
+    .returning();
+
+  return { outcome: "updated", receipt: updated };
 }
 
 export async function listReceiptsByStatus(

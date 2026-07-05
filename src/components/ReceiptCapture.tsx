@@ -8,6 +8,7 @@ type CaptureState = "idle" | "preview" | "uploading" | "success" | "error";
 type CaptureSource = "camera" | "fallback";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+const NOTE_MAX = 250;
 
 type ReceiptCaptureProps = {
   onUploaded: () => void;
@@ -18,6 +19,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [clientKey, setClientKey] = useState<string | null>(null);
+  const [note, setNote] = useState("");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -38,6 +40,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
     setFile(null);
     setPreviewUrl(null);
     setClientKey(null);
+    setNote("");
     setProgress(0);
     setError(null);
     setState("idle");
@@ -97,6 +100,10 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
     const formData = new FormData();
     formData.set("file", file);
     formData.set("clientKey", clientKey);
+    const trimmedNote = note.trim();
+    if (trimmedNote) {
+      formData.set("note", trimmedNote);
+    }
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -181,6 +188,24 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
         {previewUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={previewUrl} alt="Receipt preview" className="capture-preview" />
+        )}
+
+        {(state === "preview" || state === "error") && (
+          <div className="form-group" style={{ marginTop: "var(--space-3)" }}>
+            <label htmlFor="receipt-note">Note (optional)</label>
+            <textarea
+              id="receipt-note"
+              className="input"
+              rows={2}
+              maxLength={NOTE_MAX}
+              value={note}
+              placeholder="e.g. the $40 fan is a Wants item, rest is groceries"
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <span className="muted" style={{ fontSize: "0.75rem" }}>
+              {NOTE_MAX - note.length} characters remaining
+            </span>
+          </div>
         )}
 
         {state === "uploading" && (

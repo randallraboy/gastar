@@ -11,6 +11,7 @@ type Expense = {
   expenseDate: string;
   merchant: string;
   description: string | null;
+  note: string | null;
   categoryId: string;
   categoryPath: string[];
   bucket: BudgetCategory;
@@ -264,6 +265,11 @@ export default function ExpensesPage() {
                     on {draft.expenseDate}
                   </p>
                   <p className="muted">{formatCategoryPath(draft.categoryPath)}</p>
+                  {draft.note && (
+                    <p className="muted" style={{ fontStyle: "italic" }}>
+                      Note: “{draft.note}”
+                    </p>
+                  )}
                   <div className="expense-card-actions">
                     <button
                       className="btn btn-primary"
@@ -404,7 +410,21 @@ export default function ExpensesPage() {
                 <tr key={expense.id}>
                   <td>{expense.expenseDate}</td>
                   <td>{expense.merchant}</td>
-                  <td>{expense.description ?? "—"}</td>
+                  <td>
+                    {expense.description ?? "—"}
+                    {expense.note && (
+                      <span
+                        className="muted"
+                        style={{
+                          display: "block",
+                          fontStyle: "italic",
+                          fontSize: "0.8125rem",
+                        }}
+                      >
+                        Note: “{expense.note}”
+                      </span>
+                    )}
+                  </td>
                   <td>{renderCategoryBadges(expense)}</td>
                   <td>{formatCad(expense.amountCents)}</td>
                   <td>
@@ -452,6 +472,11 @@ export default function ExpensesPage() {
                 <div>{renderCategoryBadges(expense)}</div>
                 {expense.description && (
                   <p className="expense-card-meta">{expense.description}</p>
+                )}
+                {expense.note && (
+                  <p className="expense-card-meta" style={{ fontStyle: "italic" }}>
+                    Note: “{expense.note}”
+                  </p>
                 )}
                 <div className="expense-card-actions">
                   {expense.receiptImageUrl && (

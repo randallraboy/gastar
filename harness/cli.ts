@@ -29,8 +29,9 @@ async function pull(dir: string) {
   if (!res.ok) {
     throw new Error(`list failed: ${res.status}`);
   }
-  const receipts: Array<{ id: string; imageUrl: string }> = await res.json();
-  const manifest: Array<{ id: string; filename: string }> = [];
+  const receipts: Array<{ id: string; imageUrl: string; note?: string | null }> =
+    await res.json();
+  const manifest: Array<{ id: string; filename: string; note?: string }> = [];
 
   for (const receipt of receipts) {
     const imageRes = await fetch(`${baseUrl}${receipt.imageUrl}`, { headers });
@@ -46,7 +47,14 @@ async function pull(dir: string) {
     const filename = `${receipt.id}.${ext}`;
     const buffer = Buffer.from(await imageRes.arrayBuffer());
     await writeFile(path.join(dir, filename), buffer);
-    manifest.push({ id: receipt.id, filename });
+    const entry: { id: string; filename: string; note?: string } = {
+      id: receipt.id,
+      filename,
+    };
+    if (receipt.note && receipt.note.trim()) {
+      entry.note = receipt.note;
+    }
+    manifest.push(entry);
   }
 
   await writeFile(path.join(dir, "manifest.json"), JSON.stringify(manifest, null, 2));

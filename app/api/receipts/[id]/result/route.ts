@@ -63,6 +63,7 @@ export async function POST(request: Request, { params }: Params) {
         categoryHint: parsed.categoryHint,
       },
       receipt.blobKey,
+      receipt.note,
     );
 
     const byId = await getCategoryIndex();

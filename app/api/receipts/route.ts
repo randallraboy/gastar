@@ -2,6 +2,7 @@ import { z } from "zod";
 import { requireUser, requireHarness, handleApiError } from "@/lib/authz";
 import { createPendingReceipt, listReceiptsByStatus } from "@/lib/receipts";
 import { toPendingReceiptDto } from "@/lib/api-types";
+import { receiptNoteSchema } from "@/lib/validation";
 
 const clientKeySchema = z.string().uuid();
 
@@ -11,6 +12,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
     const clientKeyRaw = formData.get("clientKey");
+    const noteRaw = formData.get("note");
 
     if (!(file instanceof File)) {
       return Response.json(
@@ -52,8 +54,38 @@ export async function POST(request: Request) {
       clientKey = parsed.data;
     }
 
+    let note: string | null = null;
+    if (noteRaw != null && noteRaw !== "") {
+      if (typeof noteRaw !== "string") {
+        return Response.json(
+          {
+            error: { code: "VALIDATION_ERROR", message: "Note must be text" },
+          },
+          { status: 400 },
+        );
+      }
+      const parsedNote = receiptNoteSchema.safeParse(noteRaw);
+      if (!parsedNote.success) {
+        return Response.json(
+          {
+            error: {
+              code: "VALIDATION_ERROR",
+              message: parsedNote.error.issues[0]?.message ?? "Invalid note",
+            },
+          },
+          { status: 400 },
+        );
+      }
+      note = parsedNote.data && parsedNote.data.length > 0 ? parsedNote.data : null;
+    }
+
     try {
-      const { receipt, created } = await createPendingReceipt(user, file, clientKey);
+      const { receipt, created } = await createPendingReceipt(
+        user,
+        file,
+        clientKey,
+        note,
+      );
       return Response.json(toPendingReceiptDto(receipt), {
         status: created ? 201 : 200,
       });
@@ -82,7 +114,10 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const status = (searchParams.get("status") ?? "pending") as
-      "pending" | "processed" | "unreadable" | "converted";
+      | "pending"
+      | "processed"
+      | "unreadable"
+      | "converted";
 
     const receipts = await listReceiptsByStatus(status);
     return Response.json(receipts.map(toPendingReceiptDto));
