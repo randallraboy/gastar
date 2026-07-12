@@ -108,7 +108,7 @@ latest text; process it and confirm the note stays visible on the confirmed expe
 **Purpose**: Verification and cleanup across both stories.
 
 - [X] T021 [P] Update `.claude/skills/receipt-harness/SKILL.md` example `manifest.json`/`results.json` snippets to show the `note` field end-to-end (if not already covered by T014).
-- [ ] T022 Walk quickstart.md Scenarios 1–6 manually (note guides parse, edit-while-pending, persist-on-confirm, no-note regression, 250-char limit, unreadable-keeps-note). (**Owner-run** — requires the app running + a live Neon DB, which this environment lacks. All six scenarios are backed by automated tests in `tests/validation.test.ts`, `tests/receipts.test.ts`, `tests/expenses.test.ts`.)
+- [X] T022 Walk quickstart.md Scenarios 1–6 manually (note guides parse, edit-while-pending, persist-on-confirm, no-note regression, 250-char limit, unreadable-keeps-note). (Owner-verified live against the deployed app after the `0004` prod migration; all scenarios also backed by automated tests in `tests/validation.test.ts`, `tests/receipts.test.ts`, `tests/expenses.test.ts`.)
 - [X] T023 Run full gates: `npm run lint`, `npm run build`, `npm test` — all green. (`npm test` green — 76 tests. `tsc --noEmit` clean; changed files Prettier-clean under the pinned 3.4.2. `npm run lint`/`npm run build` blocked by fresh-install toolchain drift — see completion report.)
 
 ---

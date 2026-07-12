@@ -37,3 +37,6 @@ receipts-work/
 
 # Legacy (removed during migration)
 .gradle/
+
+# TypeScript build cache
+*.tsbuildinfo
