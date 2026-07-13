@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { faCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { Icon } from "@/components/ui/Icon";
 import { formatCad, parseDollarInput, centsToDollars } from "@/lib/money";
 import { CategoryPicker, formatCategoryPath } from "@/components/CategoryPicker";
 
@@ -195,10 +197,26 @@ export function ExpenseForm({
         style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-4)" }}
       >
         <button type="submit" className="btn btn-primary" disabled={submitting}>
-          {submitting ? "Saving…" : submitLabel}
+          {submitting ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              Saving…
+            </>
+          ) : (
+            <>
+              <Icon name={faCheck} />
+              {submitLabel}
+            </>
+          )}
         </button>
         {onCancel && (
-          <button type="button" className="btn" onClick={onCancel}>
+          <button
+            type="button"
+            className="btn"
+            onClick={onCancel}
+            disabled={submitting}
+          >
+            <Icon name={faXmark} />
             Cancel
           </button>
         )}

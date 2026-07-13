@@ -1,3 +1,5 @@
+import { faRightToBracket, faWallet } from "@fortawesome/free-solid-svg-icons";
+import { Icon } from "@/components/ui/Icon";
 import { auth, signIn } from "@/lib/auth";
 
 export default async function HomePage() {
@@ -9,21 +11,25 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="container" style={{ paddingTop: "4rem", textAlign: "center" }}>
+    <main className="hero">
+      <span className="hero-mark">
+        <Icon name={faWallet} />
+      </span>
       <h1>gastar</h1>
-      <p style={{ color: "var(--muted)", marginBottom: "2rem" }}>
-        Personal expense tracker for allowlisted Google accounts.
-      </p>
-      <form
-        action={async () => {
-          "use server";
-          await signIn("google");
-        }}
-      >
-        <button type="submit" className="btn btn-primary">
-          Sign in with Google
-        </button>
-      </form>
+      <p>Personal expense tracker for allowlisted Google accounts.</p>
+      <div className="hero-card">
+        <form
+          action={async () => {
+            "use server";
+            await signIn("google");
+          }}
+        >
+          <button type="submit" className="btn btn-primary btn-block">
+            <Icon name={faRightToBracket} />
+            <span>Sign in with Google</span>
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

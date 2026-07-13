@@ -1,6 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  faLayerGroup,
+  faMinus,
+  faPen,
+  faPlus,
+  faTags,
+  faTrash,
+} from "@fortawesome/free-solid-svg-icons";
+import { Icon } from "@/components/ui/Icon";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 type CategoryNode = {
   id: string;
@@ -13,11 +25,19 @@ type CategoryNode = {
   children: CategoryNode[];
 };
 
+const BUCKET_EMOJI: Record<string, string> = {
+  Needs: "🧾",
+  Wants: "🛍️",
+  Savings: "🐷",
+};
+
 export default function CategoriesPage() {
   const [tree, setTree] = useState<CategoryNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const { notify } = useToast();
+  const confirm = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -25,6 +45,7 @@ export default function CategoriesPage() {
       const res = await fetch("/api/categories?format=tree");
       if (!res.ok) throw new Error("Failed to load categories");
       setTree(await res.json());
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -46,9 +67,10 @@ export default function CategoriesPage() {
     });
     if (!res.ok) {
       const data = await res.json();
-      alert(data.error?.message ?? "Failed to add");
+      notify({ kind: "error", message: data.error?.message ?? "Failed to add" });
       return;
     }
+    notify({ kind: "success", message: `Added “${name.trim()}”` });
     await load();
   }
 
@@ -62,9 +84,10 @@ export default function CategoriesPage() {
     });
     if (!res.ok) {
       const data = await res.json();
-      alert(data.error?.message ?? "Failed to rename");
+      notify({ kind: "error", message: data.error?.message ?? "Failed to rename" });
       return;
     }
+    notify({ kind: "success", message: "Category renamed" });
     await load();
   }
 
@@ -82,14 +105,25 @@ export default function CategoriesPage() {
     });
     if (!res.ok) {
       const data = await res.json();
-      alert(data.error?.message ?? "Failed to update keywords");
+      notify({
+        kind: "error",
+        message: data.error?.message ?? "Failed to update keywords",
+      });
       return;
     }
+    notify({ kind: "success", message: "Keywords updated" });
     await load();
   }
 
   async function deleteNode(id: string, name: string) {
-    if (!confirm(`Delete "${name}" and all subcategories?`)) return;
+    const ok = await confirm({
+      title: `Delete “${name}”?`,
+      message: "This removes the category and all of its subcategories.",
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
+
     let reassignTo: string | undefined;
     let res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
     if (res.status === 409) {
@@ -106,9 +140,10 @@ export default function CategoriesPage() {
     }
     if (!res.ok && res.status !== 204) {
       const data = await res.json();
-      alert(data.error?.message ?? "Failed to delete");
+      notify({ kind: "error", message: data.error?.message ?? "Failed to delete" });
       return;
     }
+    notify({ kind: "success", message: `Deleted “${name}”` });
     await load();
   }
 
@@ -126,8 +161,9 @@ export default function CategoriesPage() {
           {hasChildren ? (
             <button
               type="button"
-              className="btn btn-compact"
+              className="btn btn-compact btn-icon"
               aria-expanded={isOpen}
+              aria-label={isOpen ? `Collapse ${node.name}` : `Expand ${node.name}`}
               onClick={() =>
                 setExpanded((s) => {
                   const n = new Set(s);
@@ -137,15 +173,20 @@ export default function CategoriesPage() {
                 })
               }
             >
-              {isOpen ? "−" : "+"}
+              <Icon name={isOpen ? faMinus : faPlus} />
             </button>
           ) : (
             <span className="category-breakdown-spacer" />
           )}
-          <span>
+          <span className="category-mgmt-name">
+            {node.isBucket && (
+              <span className="category-mgmt-emoji" aria-hidden="true">
+                {BUCKET_EMOJI[node.name] ?? "📁"}
+              </span>
+            )}
             <strong>{node.name}</strong>
             {node.keywords.length > 0 && (
-              <span className="muted" style={{ marginLeft: 8 }}>
+              <span className="muted" style={{ fontSize: "var(--fs-sm)" }}>
                 ({node.keywords.join(", ")})
               </span>
             )}
@@ -154,16 +195,18 @@ export default function CategoriesPage() {
             <span className="category-mgmt-actions">
               <button
                 type="button"
-                className="btn btn-compact"
+                className="btn btn-compact btn-ghost"
                 onClick={() => renameNode(node.id, node.name)}
               >
+                <Icon name={faPen} />
                 Rename
               </button>
               <button
                 type="button"
-                className="btn btn-compact"
+                className="btn btn-compact btn-ghost"
                 onClick={() => editKeywords(node.id, node.keywords)}
               >
+                <Icon name={faTags} />
                 Keywords
               </button>
               <button
@@ -171,6 +214,7 @@ export default function CategoriesPage() {
                 className="btn btn-compact btn-danger"
                 onClick={() => deleteNode(node.id, node.name)}
               >
+                <Icon name={faTrash} />
                 Delete
               </button>
             </span>
@@ -181,7 +225,8 @@ export default function CategoriesPage() {
               className="btn btn-compact"
               onClick={() => addChild(node.id)}
             >
-              + Add child
+              <Icon name={faPlus} />
+              Add child
             </button>
           )}
         </div>
@@ -194,13 +239,23 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <h1>Categories</h1>
-      <p className="muted">
+      <div className="page-header">
+        <h1>
+          <Icon name={faLayerGroup} />
+          Categories
+        </h1>
+      </div>
+      <p className="page-subtitle">
         Manage subcategories under Needs, Wants, and Savings. Top-level buckets are
         fixed.
       </p>
-      {loading && <p>Loading…</p>}
-      {error && <p className="error">{error}</p>}
+
+      {loading && (
+        <div className="card">
+          <Skeleton variant="text" count={5} />
+        </div>
+      )}
+      {error && !loading && <p className="error">{error}</p>}
       {!loading && !error && (
         <ul className="category-mgmt-tree">
           {tree.map((bucket) => renderNode(bucket, 0))}

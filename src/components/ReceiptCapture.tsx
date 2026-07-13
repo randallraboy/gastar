@@ -1,6 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  faArrowsRotate,
+  faCamera,
+  faCheck,
+  faCircleCheck,
+  faFolderOpen,
+  faRotateLeft,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
+import { Icon } from "@/components/ui/Icon";
 import { uploadWithProgress } from "@/lib/upload";
 import { MAX_UPLOAD_BYTES, UPLOAD_LIMIT_MB } from "@/lib/validation";
 
@@ -175,6 +185,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
       <div className="card capture-card">
         {hiddenInputs}
         <p className="capture-success" role="status">
+          <Icon name={faCircleCheck} />
           Receipt queued
         </p>
       </div>
@@ -223,6 +234,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
               />
             </div>
             <button type="button" className="btn btn-block" onClick={cancelUpload}>
+              <Icon name={faXmark} />
               Cancel
             </button>
           </>
@@ -238,6 +250,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
                 className="btn btn-primary btn-block"
                 onClick={submitCapture}
               >
+                <Icon name={faArrowsRotate} />
                 Retry
               </button>
             )}
@@ -247,10 +260,12 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
                 className="btn btn-primary btn-block"
                 onClick={submitCapture}
               >
+                <Icon name={faCheck} />
                 Use this photo
               </button>
             )}
             <button type="button" className="btn btn-block" onClick={retake}>
+              <Icon name={faRotateLeft} />
               Retake
             </button>
           </div>
@@ -269,6 +284,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
           className="btn btn-primary btn-block"
           onClick={() => cameraRef.current?.click()}
         >
+          <Icon name={faCamera} />
           Take photo
         </button>
         <button
@@ -276,6 +292,7 @@ export function ReceiptCapture({ onUploaded }: ReceiptCaptureProps) {
           className="btn btn-block"
           onClick={() => fallbackRef.current?.click()}
         >
+          <Icon name={faFolderOpen} />
           Choose file
         </button>
       </div>

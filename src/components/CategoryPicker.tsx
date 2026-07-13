@@ -1,6 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  faChevronRight,
+  faCheck,
+  faFolder,
+  faArrowUp,
+  faTag,
+} from "@fortawesome/free-solid-svg-icons";
+import { Icon } from "@/components/ui/Icon";
 
 type CategoryTreeNode = {
   id: string;
@@ -90,7 +98,8 @@ export function CategoryPicker({ value, onChange, disabled }: CategoryPickerProp
           disabled={disabled || stack.length === 0}
           onClick={() => setStack((s) => s.slice(0, -1))}
         >
-          ↑ Up
+          <Icon name={faArrowUp} />
+          Up
         </button>
         {breadcrumb.length > 0 && (
           <span className="category-picker-path">{breadcrumb.join(" › ")}</span>
@@ -108,7 +117,9 @@ export function CategoryPicker({ value, onChange, disabled }: CategoryPickerProp
                     disabled={disabled}
                     onClick={() => setStack((s) => [...s, node])}
                   >
-                    {node.name} ›
+                    <Icon name={faFolder} className="muted" />
+                    <span style={{ flex: 1 }}>{node.name}</span>
+                    <Icon name={faChevronRight} className="muted" />
                   </button>
                   <button
                     type="button"
@@ -116,6 +127,7 @@ export function CategoryPicker({ value, onChange, disabled }: CategoryPickerProp
                     disabled={disabled}
                     onClick={() => selectNode(node)}
                   >
+                    <Icon name={faCheck} />
                     Select
                   </button>
                 </>
@@ -126,7 +138,8 @@ export function CategoryPicker({ value, onChange, disabled }: CategoryPickerProp
                   disabled={disabled}
                   onClick={() => selectNode(node)}
                 >
-                  {node.name}
+                  <Icon name={faTag} className="muted" />
+                  <span>{node.name}</span>
                 </button>
               )}
             </div>
