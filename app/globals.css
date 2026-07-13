@@ -1483,23 +1483,6 @@ textarea.input {
     font-size: 1.15rem;
   }
 
-  .bottom-nav-item-primary {
-    color: var(--primary);
-  }
-
-  .bottom-nav-item-primary .bottom-nav-fab {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-pill);
-    background: var(--primary);
-    color: var(--primary-contrast);
-    box-shadow: var(--shadow-2);
-    font-size: 1.15rem;
-  }
-
   .bottom-nav-item-active {
     color: var(--primary);
     font-weight: 600;
