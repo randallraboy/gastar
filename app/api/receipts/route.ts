@@ -114,10 +114,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const status = (searchParams.get("status") ?? "pending") as
-      | "pending"
-      | "processed"
-      | "unreadable"
-      | "converted";
+      "pending" | "processed" | "unreadable" | "converted";
 
     const receipts = await listReceiptsByStatus(status);
     return Response.json(receipts.map(toPendingReceiptDto));
